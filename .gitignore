@@ -1,0 +1,19 @@
+# Private to the author: not published
+/docs/
+/CLAUDE.md
+/AGENTS.md
+
+# Claude Code: commands, local settings and worktrees
+/.claude/
+
+# Local secrets
+.env
+
+# Gradle
+.gradle/
+build/
+
+# IDE and OS
+.idea/
+*.iml
+.DS_Store
