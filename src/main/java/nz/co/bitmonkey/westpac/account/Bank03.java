@@ -9,7 +9,8 @@ import java.util.List;
  * What the service knows about bank {@code 03}, the one bank it numbers accounts for.
  *
  * <p><b>Source.</b> The branch ranges are from Inland Revenue, <i>Payroll Calculations &amp; Business Rules
- * Specification, 1 April 2020 to 31 March 2021</i>, V1.0, 13 December 2019, the last edition with a range table.
+ * Specification, 1 April 2020 to 31 March 2021</i>, V1.0, 13 December 2019, the last edition with a range table. The
+ * check digit weights, the threshold and the modulus are from the 2026-27 edition that {@link AccountNumber} names.
  * Implemented as published, with no variation.
  */
 final class Bank03 {
@@ -24,6 +25,18 @@ final class Bank03 {
             new Range(1700, 1799),
             new Range(1900, 1999),
             new Range(7350, 7399));
+
+    /** The check digit weights of algorithm A, one for each of the 16 digits. */
+    static final List<Integer> WEIGHTS_A = List.of(0, 0, 6, 3, 7, 9, 0, 10, 5, 8, 4, 2, 1, 0, 0, 0);
+
+    /** The check digit weights of algorithm B, one for each of the 16 digits. */
+    static final List<Integer> WEIGHTS_B = List.of(0, 0, 0, 0, 0, 0, 0, 10, 5, 8, 4, 2, 1, 0, 0, 0);
+
+    /** The lowest account base that uses algorithm B. A lower base uses algorithm A. */
+    static final int ALGORITHM_B_FROM = 990_000;
+
+    /** A valid number has a weighted digit sum that this divides with no remainder. */
+    static final int MODULUS = 11;
 
     private Bank03() {}
 
