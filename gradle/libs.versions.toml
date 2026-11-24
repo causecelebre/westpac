@@ -1,4 +1,5 @@
 [versions]
+checkstyle = "12.3.1"
 palantir-java-format = "2.103.0"
 spotless = "8.12.0"
 spring-boot = "4.2.0"
