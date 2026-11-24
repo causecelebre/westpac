@@ -5,9 +5,10 @@ package nz.co.bitmonkey.westpac;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.security.autoconfigure.UserDetailsServiceAutoConfiguration;
 
 /** Starts the savings account service. */
-@SpringBootApplication(proxyBeanMethods = false)
+@SpringBootApplication(proxyBeanMethods = false, exclude = UserDetailsServiceAutoConfiguration.class)
 public final class WestpacApplication {
 
     private WestpacApplication() {}
