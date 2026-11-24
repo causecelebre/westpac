@@ -36,6 +36,7 @@ dependencies {
 }
 
 tasks.withType(JavaCompile).configureEach {
+  options.compilerArgs << '-Xlint:all' << '-Xdoclint:all,-missing'
   options.errorprone {
     disableWarningsInGeneratedCode = true
     error('NullAway')
@@ -43,6 +44,8 @@ tasks.withType(JavaCompile).configureEach {
     option('NullAway:JSpecifyMode', 'true')
   }
 }
+
+tasks.named('test') { mustRunAfter 'spotlessCheck', 'checkstyleMain' }
 
 spotbugs {
   toolVersion = libs.versions.spotbugs.asProvider().get()
