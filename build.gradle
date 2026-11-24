@@ -53,6 +53,11 @@ tasks.withType(JavaCompile).configureEach {
 tasks.named('test') {
   useJUnitPlatform()
   mustRunAfter 'spotlessCheck', 'checkstyleMain'
+  jvmArgs '-XX:+ExitOnOutOfMemoryError'
+}
+
+tasks.named('bootRun') {
+  jvmArgs '-XX:+ExitOnOutOfMemoryError'
 }
 
 spotbugs {
