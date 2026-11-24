@@ -16,4 +16,6 @@ build/
 # IDE and OS
 .idea/
 *.iml
+*.ipr
+*.iws
 .DS_Store
