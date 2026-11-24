@@ -2,7 +2,10 @@ import org.springframework.boot.gradle.plugin.SpringBootPlugin
 
 plugins {
   id 'java'
+  id 'idea'
   alias(libs.plugins.spring.boot)
+  alias(libs.plugins.spotless)
+  alias(libs.plugins.palantir.java.format.idea)
 }
 
 group = 'nz.co.bitmonkey'
@@ -20,4 +23,26 @@ repositories {
 dependencies {
   implementation platform(SpringBootPlugin.BOM_COORDINATES)
   implementation libs.spring.boot.starter.webmvc
+}
+
+spotless {
+  java {
+    target 'src/**/*.java'
+    palantirJavaFormat(libs.versions.palantir.java.format.get()).formatJavadoc(true)
+    removeUnusedImports()
+    formatAnnotations()
+    trimTrailingWhitespace()
+    endWithNewline()
+    toggleOffOn()
+    licenseHeaderFile('config/licence-header.txt')
+  }
+  format 'misc', {
+    target '*.gradle', '.gitignore', 'src/**/*.yml', 'src/**/*.sql'
+    trimTrailingWhitespace()
+    endWithNewline()
+  }
+  format 'markdown', {
+    target '*.md'
+    endWithNewline()
+  }
 }

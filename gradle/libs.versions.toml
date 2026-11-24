@@ -1,8 +1,12 @@
 [versions]
+palantir-java-format = "2.103.0"
+spotless = "8.12.0"
 spring-boot = "4.2.0"
 
 [libraries]
 spring-boot-starter-webmvc = { module = "org.springframework.boot:spring-boot-starter-webmvc" }
 
 [plugins]
+palantir-java-format-idea = { id = "com.palantir.java-format-idea", version.ref = "palantir-java-format" }
+spotless = { id = "com.diffplug.spotless", version.ref = "spotless" }
 spring-boot = { id = "org.springframework.boot", version.ref = "spring-boot" }
