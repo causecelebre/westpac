@@ -1,3 +1,6 @@
+import com.github.spotbugs.snom.Confidence
+import com.github.spotbugs.snom.Effort
+import com.github.spotbugs.snom.SpotBugsTask
 import org.springframework.boot.gradle.plugin.SpringBootPlugin
 
 plugins {
@@ -6,6 +9,7 @@ plugins {
   id 'checkstyle'
   alias(libs.plugins.spring.boot)
   alias(libs.plugins.errorprone)
+  alias(libs.plugins.spotbugs)
   alias(libs.plugins.spotless)
   alias(libs.plugins.palantir.java.format.idea)
 }
@@ -26,6 +30,7 @@ dependencies {
   implementation platform(SpringBootPlugin.BOM_COORDINATES)
   implementation libs.spring.boot.starter.webmvc
   compileOnly libs.jspecify
+  compileOnly libs.spotbugs.annotations
   errorprone libs.errorprone.core
   errorprone libs.nullaway
 }
@@ -36,6 +41,21 @@ tasks.withType(JavaCompile).configureEach {
     error('NullAway')
     option('NullAway:AnnotatedPackages', 'nz.co.bitmonkey')
     option('NullAway:JSpecifyMode', 'true')
+  }
+}
+
+spotbugs {
+  toolVersion = libs.versions.spotbugs.asProvider().get()
+  effort = Effort.MAX
+  reportLevel = Confidence.valueOf('DEFAULT')
+  excludeFilter = file('config/spotbugs/exclude.xml')
+}
+
+tasks.spotbugsTest { enabled = false }
+tasks.withType(SpotBugsTask).configureEach {
+  reports {
+    html.required = true
+    xml.required = false
   }
 }
 

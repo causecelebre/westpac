@@ -5,6 +5,8 @@ errorprone-plugin = "5.2.0"
 jspecify = "1.0.1"
 nullaway = "0.14.4"
 palantir-java-format = "2.103.0"
+spotbugs = "4.10.5"
+spotbugs-plugin = "6.5.13"
 spotless = "8.12.0"
 spring-boot = "4.2.0"
 
@@ -12,10 +14,12 @@ spring-boot = "4.2.0"
 errorprone-core = { module = "com.google.errorprone:error_prone_core", version.ref = "errorprone" }
 jspecify = { module = "org.jspecify:jspecify", version.ref = "jspecify" }
 nullaway = { module = "com.uber.nullaway:nullaway", version.ref = "nullaway" }
+spotbugs-annotations = { module = "com.github.spotbugs:spotbugs-annotations", version.ref = "spotbugs" }
 spring-boot-starter-webmvc = { module = "org.springframework.boot:spring-boot-starter-webmvc" }
 
 [plugins]
 errorprone = { id = "net.ltgt.errorprone", version.ref = "errorprone-plugin" }
 palantir-java-format-idea = { id = "com.palantir.java-format-idea", version.ref = "palantir-java-format" }
+spotbugs = { id = "com.github.spotbugs", version.ref = "spotbugs-plugin" }
 spotless = { id = "com.diffplug.spotless", version.ref = "spotless" }
 spring-boot = { id = "org.springframework.boot", version.ref = "spring-boot" }
