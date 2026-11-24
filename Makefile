@@ -1,10 +1,19 @@
-.PHONY: env infra down reset logs psql
+.PHONY: env infra run run-direct down reset logs psql test check format
 
 env:
 	test -f .env || cp .env.example .env
 
-infra:
+.env:
+	@echo 'There is no .env file. Run make env to make one.' >&2; exit 1
+
+infra: .env
 	docker compose up --detach --wait
+
+run: infra
+	set -a; . ./.env; set +a; ./gradlew bootRun
+
+run-direct: .env
+	set -a; . ./.env; set +a; ./gradlew bootRun
 
 down:
 	docker compose down
@@ -18,3 +27,12 @@ logs:
 
 psql:
 	docker compose exec postgres psql --username=westpac_app --dbname=westpac
+
+test:
+	./gradlew test
+
+check:
+	./gradlew check
+
+format:
+	./gradlew spotlessApply
