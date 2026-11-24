@@ -5,6 +5,7 @@ plugins {
   id 'idea'
   id 'checkstyle'
   alias(libs.plugins.spring.boot)
+  alias(libs.plugins.errorprone)
   alias(libs.plugins.spotless)
   alias(libs.plugins.palantir.java.format.idea)
 }
@@ -24,6 +25,18 @@ repositories {
 dependencies {
   implementation platform(SpringBootPlugin.BOM_COORDINATES)
   implementation libs.spring.boot.starter.webmvc
+  compileOnly libs.jspecify
+  errorprone libs.errorprone.core
+  errorprone libs.nullaway
+}
+
+tasks.withType(JavaCompile).configureEach {
+  options.errorprone {
+    disableWarningsInGeneratedCode = true
+    error('NullAway')
+    option('NullAway:AnnotatedPackages', 'nz.co.bitmonkey')
+    option('NullAway:JSpecifyMode', 'true')
+  }
 }
 
 checkstyle {
