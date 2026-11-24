@@ -12,6 +12,9 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.SpringBootTest.WebEnvironment;
@@ -38,6 +41,24 @@ class ManagementEndpointsTest {
 
         assertThat(response.statusCode()).isEqualTo(200);
         assertThat(response.body()).isEqualTo("{\"status\":\"UP\"}");
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"/actuator/health", "/actuator/info"})
+    void healthAndInfoArePermitted(String path) throws IOException, InterruptedException {
+        assertThat(get(managementPort(), path).statusCode()).isEqualTo(200);
+    }
+
+    @ParameterizedTest
+    @CsvSource({"management, /actuator", "management, /actuator/env", "api, /x"})
+    void everythingElseIsRefusedWith401(String port, String path) throws IOException, InterruptedException {
+        int number = port.equals("management") ? managementPort() : apiPort();
+
+        assertThat(get(number, path).statusCode()).isEqualTo(401);
+    }
+
+    private int apiPort() {
+        return environment.getRequiredProperty("local.server.port", Integer.class);
     }
 
     private int managementPort() {

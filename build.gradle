@@ -29,7 +29,9 @@ repositories {
 dependencies {
   implementation platform(SpringBootPlugin.BOM_COORDINATES)
   implementation libs.spring.boot.starter.actuator
+  implementation libs.spring.boot.starter.security
   implementation libs.spring.boot.starter.webmvc
+  testImplementation libs.spring.boot.starter.security.test
   testImplementation libs.spring.boot.starter.test
   testRuntimeOnly libs.junit.platform.launcher
   compileOnly libs.jspecify

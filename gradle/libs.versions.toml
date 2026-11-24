@@ -16,6 +16,8 @@ jspecify = { module = "org.jspecify:jspecify", version.ref = "jspecify" }
 nullaway = { module = "com.uber.nullaway:nullaway", version.ref = "nullaway" }
 spotbugs-annotations = { module = "com.github.spotbugs:spotbugs-annotations", version.ref = "spotbugs" }
 spring-boot-starter-actuator = { module = "org.springframework.boot:spring-boot-starter-actuator" }
+spring-boot-starter-security = { module = "org.springframework.boot:spring-boot-starter-security" }
+spring-boot-starter-security-test = { module = "org.springframework.boot:spring-boot-starter-security-test" }
 spring-boot-starter-test = { module = "org.springframework.boot:spring-boot-starter-test" }
 spring-boot-starter-webmvc = { module = "org.springframework.boot:spring-boot-starter-webmvc" }
 junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher" }
