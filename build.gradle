@@ -1,0 +1,23 @@
+import org.springframework.boot.gradle.plugin.SpringBootPlugin
+
+plugins {
+  id 'java'
+  alias(libs.plugins.spring.boot)
+}
+
+group = 'nz.co.bitmonkey'
+
+java {
+  toolchain {
+    languageVersion = JavaLanguageVersion.of(25)
+  }
+}
+
+repositories {
+  mavenCentral()
+}
+
+dependencies {
+  implementation platform(SpringBootPlugin.BOM_COORDINATES)
+  implementation libs.spring.boot.starter.webmvc
+}
