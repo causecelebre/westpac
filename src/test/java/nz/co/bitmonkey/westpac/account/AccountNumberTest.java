@@ -6,6 +6,8 @@ package nz.co.bitmonkey.westpac.account;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
 
+import java.util.Locale;
+import java.util.Optional;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
@@ -13,6 +15,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 class AccountNumberTest {
 
@@ -101,6 +104,68 @@ class AccountNumberTest {
     void givesTheStandardForm(String branch, String base, int suffix, String form) {
         assertThat(new AccountNumber("03", new BranchNumber(branch), base, suffix))
                 .hasToString(form);
+    }
+
+    @ParameterizedTest
+    @CsvSource(textBlock = """
+            0123, 1, 03-0123-0000019-000
+            1501, 3, 03-1501-0000038-000
+            1501, 98999, 03-1501-0989990-000
+            1501, 99000, 03-1501-0990008-000
+            """)
+    void makesANewBaseFromASequenceValue(String branch, int sequenceValue, String form) {
+        assertThat(AccountNumber.withNewBase("03", new BranchNumber(branch), sequenceValue))
+                .hasValueSatisfying(number -> assertThat(number).hasToString(form));
+    }
+
+    @Test
+    void givesNoNumberWhenTheCheckDigitWouldBe10() {
+        assertThat(AccountNumber.withNewBase("03", new BranchNumber("1501"), 2)).isEmpty();
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = {0, 1, 2, 3, 4})
+    void acceptsEverySuffixOfANewBase(int suffix) {
+        AccountNumber first =
+                AccountNumber.withNewBase("03", new BranchNumber("0123"), 1).orElseThrow();
+
+        assertThat(new AccountNumber(first.bank(), first.branch(), first.base(), suffix).suffix())
+                .isEqualTo(suffix);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"0123", "1501"})
+    void givesANumberForEverySequenceValueThatHasACheckDigit(String branchValue) {
+        BranchNumber branch = new BranchNumber(branchValue);
+        int[] values = IntStream.concat(
+                        IntStream.concat(IntStream.rangeClosed(1, 10_000), IntStream.rangeClosed(98_000, 100_000)),
+                        IntStream.rangeClosed(990_000, 999_999))
+                .toArray();
+        int empty = 0;
+        for (int value : values) {
+            Optional<AccountNumber> number = AccountNumber.withNewBase("03", branch, value);
+            if (number.isPresent()) {
+                assertThat(number.get().base()).startsWith(String.format(Locale.ROOT, "%06d", value));
+            } else {
+                empty++;
+                assertThat(anyDigitWorks(branch, value)).as("value %s", value).isFalse();
+            }
+        }
+
+        assertThat(values).hasSize(22_001);
+        assertThat(empty).isBetween(1_600, 2_400);
+    }
+
+    private static boolean anyDigitWorks(BranchNumber branch, int value) {
+        for (char digit = '0'; digit <= '9'; digit++) {
+            try {
+                new AccountNumber("03", branch, String.format(Locale.ROOT, "%06d%s", value, digit), 0);
+                return true;
+            } catch (IllegalArgumentException expected) {
+                // This digit gives a wrong check digit.
+            }
+        }
+        return false;
     }
 
     private static int[] range(int from, int to) {
