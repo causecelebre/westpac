@@ -28,7 +28,10 @@ repositories {
 
 dependencies {
   implementation platform(SpringBootPlugin.BOM_COORDINATES)
+  implementation libs.spring.boot.starter.actuator
   implementation libs.spring.boot.starter.webmvc
+  testImplementation libs.spring.boot.starter.test
+  testRuntimeOnly libs.junit.platform.launcher
   compileOnly libs.jspecify
   compileOnly libs.spotbugs.annotations
   errorprone libs.errorprone.core
@@ -45,7 +48,10 @@ tasks.withType(JavaCompile).configureEach {
   }
 }
 
-tasks.named('test') { mustRunAfter 'spotlessCheck', 'checkstyleMain' }
+tasks.named('test') {
+  useJUnitPlatform()
+  mustRunAfter 'spotlessCheck', 'checkstyleMain'
+}
 
 spotbugs {
   toolVersion = libs.versions.spotbugs.asProvider().get()
