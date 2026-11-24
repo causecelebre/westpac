@@ -5,6 +5,7 @@ package nz.co.bitmonkey.westpac.account;
 
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 import java.util.regex.Pattern;
 
 /**
@@ -28,6 +29,7 @@ public record AccountNumber(String bank, BranchNumber branch, String base, int s
 
     private static final Pattern SEVEN_DIGITS = Pattern.compile("[0-9]{7}");
     private static final int MAX_SUFFIX = 999;
+    private static final int NO_DIGIT = 10;
 
     /**
      * Makes an account number from its four parts. The messages name the bank and the branch, but never the base.
@@ -52,6 +54,27 @@ public record AccountNumber(String bank, BranchNumber branch, String base, int s
             throw new IllegalArgumentException(
                     String.format("account number check digit is wrong, at bank %s branch %s", bank, branch.value()));
         }
+    }
+
+    /**
+     * Makes the number for a new account base, with suffix {@code 000}. The base is the six digits of
+     * {@code sequenceValue} followed by the one check digit that makes the number valid.
+     *
+     * @param bank the bank code
+     * @param branch the branch of the new account
+     * @param sequenceValue the next value of the account number sequence, from 1 to 999999
+     * @return the new number, or empty when the check digit would have to be 10
+     */
+    public static Optional<AccountNumber> withNewBase(String bank, BranchNumber branch, int sequenceValue) {
+        String prefix = String.format(Locale.ROOT, "%06d", sequenceValue);
+        int remainder = weightedSum(bank, branch, prefix + "0", 0) % Bank03.MODULUS;
+        int checkDigit = (Bank03.MODULUS - remainder) % Bank03.MODULUS;
+
+        if (checkDigit == NO_DIGIT) {
+            return Optional.empty();
+        }
+
+        return Optional.of(new AccountNumber(bank, branch, prefix + checkDigit, 0));
     }
 
     /**
