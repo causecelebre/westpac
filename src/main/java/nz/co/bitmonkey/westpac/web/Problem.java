@@ -10,6 +10,7 @@ import org.springframework.http.ProblemDetail;
 
 /** The kinds of problem the service answers with, each with its HTTP status, permanent code and title. */
 public enum Problem {
+    VALIDATION_FAILED(HttpStatus.BAD_REQUEST, "validation-failed", "The request is not valid"),
     ACCOUNT_NOT_FOUND(HttpStatus.NOT_FOUND, "account-not-found", "The account does not exist"),
     BRANCH_NOT_ALLOWED(HttpStatus.UNPROCESSABLE_CONTENT, "branch-not-allowed", "The branch is not allowed"),
     ACCOUNT_LIMIT_REACHED(
