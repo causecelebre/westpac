@@ -19,6 +19,8 @@ public enum Problem {
     BRANCH_NOT_ALLOWED(HttpStatus.UNPROCESSABLE_CONTENT, "branch-not-allowed", "The branch is not allowed"),
     ACCOUNT_LIMIT_REACHED(
             HttpStatus.UNPROCESSABLE_CONTENT, "account-limit-reached", "The customer has the most accounts allowed"),
+    CONCURRENT_REQUEST(
+            HttpStatus.CONFLICT, "concurrent-request", "Another request for the customer was completed first"),
     INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "internal-error", "The service could not complete the request");
 
     private static final String TYPE_PREFIX = "tag:bitmonkey.co.nz,2026:problem/";

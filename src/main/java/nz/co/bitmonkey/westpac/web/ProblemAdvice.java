@@ -8,13 +8,17 @@ import jakarta.validation.ConstraintViolation;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
 import org.hibernate.validator.engine.HibernateConstraintViolation;
 import org.jspecify.annotations.Nullable;
+import org.postgresql.util.PSQLException;
+import org.postgresql.util.ServerErrorMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.TypeMismatchException;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ProblemDetail;
@@ -39,6 +43,9 @@ final class ProblemAdvice extends ResponseEntityExceptionHandler {
 
     private static final Map<String, FieldErrorCode> CODES_BY_CONSTRAINT =
             Map.of("NotNull", FieldErrorCode.REQUIRED, "Pattern", FieldErrorCode.CHARACTERS);
+
+    private static final Set<String> RACE_CONSTRAINTS =
+            Set.of("savings_account_customer_uk", "savings_account_number_uk");
 
     /** Answers broken field rules with {@code 400 validation-failed}, one error for each failing field. */
     @Override
@@ -110,6 +117,25 @@ final class ProblemAdvice extends ResponseEntityExceptionHandler {
     }
 
     /**
+     * Answers a create that lost a race with another create for the same customer with {@code 409 concurrent-request}.
+     * A duplicate on any other constraint is a fault, and gets {@code 500 internal-error}.
+     *
+     * @param exception the broken unique constraint
+     * @param request the request that met it
+     * @return the problem
+     */
+    @ExceptionHandler(DuplicateKeyException.class)
+    ResponseEntity<ProblemDetail> handleDuplicateKey(DuplicateKeyException exception, HttpServletRequest request) {
+        if (!RACE_CONSTRAINTS.contains(constraintOf(exception))) {
+            return handleUnplanned(exception, request);
+        }
+
+        return ResponseEntity.of(Problem.CONCURRENT_REQUEST.body(
+                        request, "Another create for the customer was completed first. Send the request again"))
+                .build();
+    }
+
+    /**
      * Answers any exception that no other handler takes with {@code 500 internal-error}, and logs it in full.
      *
      * @param exception the unplanned fault
@@ -128,6 +154,17 @@ final class ProblemAdvice extends ResponseEntityExceptionHandler {
         return ResponseEntity.of(problem.body(((ServletWebRequest) request).getRequest(), detail))
                 .headers(headers)
                 .build();
+    }
+
+    private static String constraintOf(DuplicateKeyException exception) {
+        if (exception.getMostSpecificCause() instanceof PSQLException postgres) {
+            ServerErrorMessage message = postgres.getServerErrorMessage();
+            if (message != null) {
+                return String.valueOf(message.getConstraint());
+            }
+        }
+
+        return "";
     }
 
     private static FieldErrorBody firstError(List<FieldError> errorsOfOneField) {
