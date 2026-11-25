@@ -19,6 +19,8 @@ import nz.co.bitmonkey.westpac.account.Nickname;
 import nz.co.bitmonkey.westpac.account.OpenAccount;
 import nz.co.bitmonkey.westpac.account.OpenResult;
 import nz.co.bitmonkey.westpac.web.Problem;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -55,7 +57,7 @@ public final class AccountController {
      * @param http the HTTP request
      * @return {@code 201} with the new account, or {@code 422} with the rule that refused it
      */
-    @PostMapping
+    @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> open(@Valid @RequestBody OpenAccountRequest request, HttpServletRequest http) {
         OpenAccount open = openAccount(request);
 
@@ -81,7 +83,7 @@ public final class AccountController {
      * @return {@code 200} with the account, or {@code 404} when no account has that id. A UUID that is not version 7
      *     gets {@code 404} with no lookup.
      */
-    @GetMapping("/{id}")
+    @GetMapping(path = "/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> get(@PathVariable UUID id, HttpServletRequest http) {
         return AccountId.from(id)
                 .flatMap(reader::find)
@@ -108,6 +110,9 @@ public final class AccountController {
     }
 
     private static ResponseEntity<?> problem(Problem problem, HttpServletRequest http, String detail) {
-        return ResponseEntity.of(problem.body(http, detail)).build();
+        // The mappings produce only application/json, so a problem sets its own type.
+        return ResponseEntity.of(problem.body(http, detail))
+                .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_PROBLEM_JSON_VALUE)
+                .build();
     }
 }
