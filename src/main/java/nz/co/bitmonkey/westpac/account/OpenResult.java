@@ -16,6 +16,9 @@ public sealed interface OpenResult {
     /** The bank does not own the requested branch. No account was opened. */
     record BranchRefused() implements OpenResult {}
 
+    /** The nickname holds a word from the list of offensive words. No account was opened. */
+    record NicknameRefused() implements OpenResult {}
+
     /**
      * The customer already holds the most accounts allowed. No account was opened.
      *

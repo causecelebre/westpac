@@ -17,6 +17,7 @@ public enum Problem {
     UNSUPPORTED_MEDIA_TYPE(
             HttpStatus.UNSUPPORTED_MEDIA_TYPE, "unsupported-media-type", "The media type is not supported"),
     BRANCH_NOT_ALLOWED(HttpStatus.UNPROCESSABLE_CONTENT, "branch-not-allowed", "The branch is not allowed"),
+    NICKNAME_NOT_ALLOWED(HttpStatus.UNPROCESSABLE_CONTENT, "nickname-not-allowed", "The nickname is not allowed"),
     ACCOUNT_LIMIT_REACHED(
             HttpStatus.UNPROCESSABLE_CONTENT, "account-limit-reached", "The customer has the most accounts allowed"),
     CONCURRENT_REQUEST(

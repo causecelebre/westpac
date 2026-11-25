@@ -106,6 +106,17 @@ class CreateAndReadTest extends ApplicationTest {
     }
 
     @Test
+    void refusesAnOffensiveNicknameAndWritesNoRow() throws IOException, InterruptedException {
+        UUID customer = UUID.randomUUID();
+
+        HttpResponse<String> response = post(body(customer.toString(), "0123", "Jane Citizen", "Bullsh1t Fund"));
+
+        assertProblem(response, 422, "nickname-not-allowed", PATH);
+        assertThat(response.body()).doesNotContainIgnoringCase("bullsh").doesNotContainIgnoringCase("fund");
+        assertThat(repository.accountsOf(new CustomerId(customer)).numbers()).isEmpty();
+    }
+
+    @Test
     void refusesTheSixthAccount() throws IOException, InterruptedException {
         String customer = UUID.randomUUID().toString();
         for (int i = 0; i < 5; i++) {

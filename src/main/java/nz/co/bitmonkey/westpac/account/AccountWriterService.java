@@ -6,6 +6,7 @@ package nz.co.bitmonkey.westpac.account;
 import java.time.Clock;
 import java.time.Instant;
 import nz.co.bitmonkey.westpac.account.store.AccountRepository;
+import nz.co.bitmonkey.westpac.moderation.NicknamePolicy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -19,6 +20,7 @@ public final class AccountWriterService {
     private final AccountRepository repository;
     private final AccountIdGenerator ids;
     private final AccountNumberGenerator numbers;
+    private final NicknamePolicy nicknames;
     private final Clock clock;
     private final TransactionTemplate transactions;
 
@@ -28,6 +30,7 @@ public final class AccountWriterService {
      * @param repository the store of accounts
      * @param ids the source of account ids
      * @param numbers the source of account numbers
+     * @param nicknames the policy that decides whether a nickname is allowed
      * @param clock the clock that gives the time an account is opened
      * @param transactionManager the manager of the transaction that holds the count, the number and the insert
      */
@@ -35,11 +38,13 @@ public final class AccountWriterService {
             AccountRepository repository,
             AccountIdGenerator ids,
             AccountNumberGenerator numbers,
+            NicknamePolicy nicknames,
             Clock clock,
             PlatformTransactionManager transactionManager) {
         this.repository = repository;
         this.ids = ids;
         this.numbers = numbers;
+        this.nicknames = nicknames;
         this.clock = clock;
         this.transactions = new TransactionTemplate(transactionManager);
         this.transactions.setTimeout(TRANSACTION_TIMEOUT_SECONDS);
@@ -68,6 +73,11 @@ public final class AccountWriterService {
     public OpenResult open(OpenAccount request) {
         if (!Bank03.allows(request.branch())) {
             return new OpenResult.BranchRefused();
+        }
+
+        Nickname nickname = request.nickname();
+        if (nickname != null && !nicknames.allows(nickname)) {
+            return new OpenResult.NicknameRefused();
         }
 
         return transactions.execute(status -> {

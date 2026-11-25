@@ -17,6 +17,7 @@ class AccountWriterServiceTest extends ApplicationTest {
     private static final BranchNumber BRANCH = new BranchNumber("0123");
     private static final BranchNumber OTHER_BRANCH = new BranchNumber("1501");
     private static final CustomerName NAME = new CustomerName("Aroha Ngata");
+    private static final Nickname OFFENSIVE = new Nickname("Bullsh1t Fund");
 
     @Autowired
     private AccountWriterService service;
@@ -63,6 +64,23 @@ class AccountWriterServiceTest extends ApplicationTest {
         assertThat(service.open(request(customer, new BranchNumber("1000"), NAME)))
                 .isEqualTo(new OpenResult.BranchRefused());
         assertThat(repository.accountsOf(customer).numbers()).isEmpty();
+    }
+
+    @Test
+    void refusesAnOffensiveNicknameAndWritesNoRow() {
+        CustomerId customer = newCustomer();
+
+        assertThat(service.open(new OpenAccount(customer, BRANCH, NAME, OFFENSIVE, null)))
+                .isEqualTo(new OpenResult.NicknameRefused());
+        assertThat(repository.accountsOf(customer).numbers()).isEmpty();
+    }
+
+    @Test
+    void checksTheBranchBeforeTheNickname() {
+        CustomerId customer = newCustomer();
+
+        assertThat(service.open(new OpenAccount(customer, new BranchNumber("1000"), NAME, OFFENSIVE, null)))
+                .isEqualTo(new OpenResult.BranchRefused());
     }
 
     @Test

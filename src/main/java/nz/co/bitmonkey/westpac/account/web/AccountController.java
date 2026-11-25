@@ -70,6 +70,8 @@ public final class AccountController {
                         Problem.BRANCH_NOT_ALLOWED,
                         http,
                         "Branch " + open.branch().value() + " is outside the bank's branch ranges");
+            case OpenResult.NicknameRefused() ->
+                problem(Problem.NICKNAME_NOT_ALLOWED, http, "The nickname is not allowed");
             case OpenResult.LimitReached(var limit) ->
                 problem(Problem.ACCOUNT_LIMIT_REACHED, http, "The customer already has " + limit + " accounts");
         };
