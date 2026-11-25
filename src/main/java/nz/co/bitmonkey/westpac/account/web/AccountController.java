@@ -4,11 +4,18 @@
 package nz.co.bitmonkey.westpac.account.web;
 
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
 import java.net.URI;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
 import nz.co.bitmonkey.westpac.account.AccountId;
 import nz.co.bitmonkey.westpac.account.AccountReaderService;
 import nz.co.bitmonkey.westpac.account.AccountWriterService;
+import nz.co.bitmonkey.westpac.account.BranchNumber;
+import nz.co.bitmonkey.westpac.account.CustomerId;
+import nz.co.bitmonkey.westpac.account.CustomerName;
+import nz.co.bitmonkey.westpac.account.Nickname;
 import nz.co.bitmonkey.westpac.account.OpenAccount;
 import nz.co.bitmonkey.westpac.account.OpenResult;
 import nz.co.bitmonkey.westpac.web.Problem;
@@ -49,8 +56,8 @@ public final class AccountController {
      * @return {@code 201} with the new account, or {@code 422} with the rule that refused it
      */
     @PostMapping
-    public ResponseEntity<?> open(@RequestBody OpenAccountRequest request, HttpServletRequest http) {
-        OpenAccount open = request.toOpenAccount();
+    public ResponseEntity<?> open(@Valid @RequestBody OpenAccountRequest request, HttpServletRequest http) {
+        OpenAccount open = openAccount(request);
 
         return switch (writer.open(open)) {
             case OpenResult.Opened(var account) ->
@@ -80,6 +87,20 @@ public final class AccountController {
                 .flatMap(reader::find)
                 .<ResponseEntity<?>>map(account -> ResponseEntity.ok(AccountResponse.of(account)))
                 .orElseGet(() -> notFound(http));
+    }
+
+    /**
+     * Gives a validated request in domain types, with no idempotency key.
+     *
+     * @throws NullPointerException if a required component is {@code null}, which Bean Validation refuses first
+     */
+    private static OpenAccount openAccount(OpenAccountRequest request) {
+        return new OpenAccount(
+                new CustomerId(Objects.requireNonNull(request.customerId(), "customerId")),
+                new BranchNumber(Objects.requireNonNull(request.branch(), "branch")),
+                new CustomerName(Objects.requireNonNull(request.customerName(), "customerName")),
+                Optional.ofNullable(request.nickname()).map(Nickname::new).orElse(null),
+                null);
     }
 
     private static ResponseEntity<?> notFound(HttpServletRequest http) {
