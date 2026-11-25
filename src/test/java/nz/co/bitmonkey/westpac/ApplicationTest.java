@@ -7,6 +7,9 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.SQLException;
 import java.util.concurrent.Callable;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -42,13 +45,27 @@ public abstract class ApplicationTest {
         return JdbcClient.create(new DriverManagerDataSource(POSTGRES.getJdbcUrl(), "westpac_owner", OWNER_PASSWORD));
     }
 
+    protected static JdbcClient asSuperuser() {
+        return JdbcClient.create(
+                new DriverManagerDataSource(POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword()));
+    }
+
+    protected static Connection ownerTransaction() throws SQLException {
+        Connection connection = DriverManager.getConnection(POSTGRES.getJdbcUrl(), "westpac_owner", OWNER_PASSWORD);
+        connection.setAutoCommit(false);
+
+        return connection;
+    }
+
     protected static <T> T withAccountNumbersRunOut(Callable<T> action) throws Exception {
         JdbcClient owner = asOwner();
+
         owner.sql("select nextval('account_number_seq')").query(Long.class).single();
         long last = owner.sql("select nextval('account_number_seq')")
                 .query(Long.class)
                 .single();
         owner.sql("alter sequence account_number_seq maxvalue " + last).update();
+
         try {
             return action.call();
         } finally {
@@ -65,6 +82,7 @@ public abstract class ApplicationTest {
                 .withCopyFileToContainer(
                         MountableFile.forHostPath(INIT_SCRIPT), "/docker-entrypoint-initdb.d/01-roles-and-schema.sql");
         container.start();
+
         return container;
     }
 
@@ -75,6 +93,7 @@ public abstract class ApplicationTest {
             if (!image.find()) {
                 throw new IllegalStateException("compose.yaml names no postgres image");
             }
+
             return DockerImageName.parse(image.group(1)).asCompatibleSubstituteFor("postgres");
         } catch (IOException e) {
             throw new UncheckedIOException(e);
