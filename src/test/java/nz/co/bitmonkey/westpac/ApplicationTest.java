@@ -10,6 +10,8 @@ import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.concurrent.Callable;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -55,6 +57,21 @@ public abstract class ApplicationTest {
         connection.setAutoCommit(false);
 
         return connection;
+    }
+
+    protected static void awaitAppSessionsWaitingOnALock(int sessions) throws InterruptedException {
+        Instant deadline = Instant.now().plus(Duration.ofSeconds(4));
+        while (Instant.now().isBefore(deadline)) {
+            int waiting = asSuperuser().sql("""
+                            select count(*) from pg_stat_activity
+                            where usename = 'westpac_app' and wait_event_type = 'Lock'
+                            """).query(Integer.class).single();
+            if (waiting == sessions) {
+                return;
+            }
+            Thread.sleep(20);
+        }
+        throw new AssertionError("the app sessions waiting on a lock did not reach " + sessions);
     }
 
     protected static <T> T withAccountNumbersRunOut(Callable<T> action) throws Exception {
