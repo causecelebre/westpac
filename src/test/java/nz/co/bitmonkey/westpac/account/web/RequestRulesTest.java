@@ -12,6 +12,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpRequest.BodyPublishers;
 import java.net.http.HttpResponse;
 import java.net.http.HttpResponse.BodyHandlers;
+import java.util.List;
 import java.util.UUID;
 import java.util.stream.Stream;
 import nz.co.bitmonkey.westpac.ApplicationTest;
@@ -73,6 +74,48 @@ class RequestRulesTest extends ApplicationTest {
         HttpResponse<String> response = send(post(body, "application/json"));
 
         assertProblem(response, 400, "malformed-request", PATH);
+    }
+
+    static Stream<Arguments> badKeyHeaders() {
+        return Stream.of(
+                Arguments.of("short form", List.of("1-1-1-1-1")),
+                Arguments.of("not a UUID", List.of("abc")),
+                Arguments.of("empty", List.of("")),
+                Arguments.of(
+                        "two lines",
+                        List.of(UUID.randomUUID().toString(), UUID.randomUUID().toString())));
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("badKeyHeaders")
+    void answersABadIdempotencyKeyHeaderWithMalformedRequestAndOpensNoAccount(String kind, List<String> values)
+            throws IOException, InterruptedException {
+        UUID customer = UUID.randomUUID();
+        HttpRequest.Builder request = HttpRequest.newBuilder(uri(PATH))
+                .header("Content-Type", "application/json")
+                .POST(BodyPublishers.ofString(validBody(customer)));
+        values.forEach(value -> request.header("Idempotency-Key", value));
+
+        HttpResponse<String> response = send(request.build());
+
+        assertProblem(response, 400, "malformed-request", PATH);
+        assertThat(repository.accountsOf(new CustomerId(customer)).numbers()).isEmpty();
+    }
+
+    @Test
+    void answersAFieldErrorBeforeABadIdempotencyKeyHeader() throws IOException, InterruptedException {
+        String body = json.writeValueAsString(json.createObjectNode()
+                .put("customerId", UUID.randomUUID().toString())
+                .put("branch", "0123"));
+        HttpRequest request = HttpRequest.newBuilder(uri(PATH))
+                .header("Content-Type", "application/json")
+                .header("Idempotency-Key", "1-1-1-1-1")
+                .POST(BodyPublishers.ofString(body))
+                .build();
+
+        HttpResponse<String> response = send(request);
+
+        assertProblem(response, 400, "validation-failed", PATH);
     }
 
     @Test

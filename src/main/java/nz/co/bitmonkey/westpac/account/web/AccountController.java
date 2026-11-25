@@ -15,11 +15,15 @@ import nz.co.bitmonkey.westpac.account.AccountWriterService;
 import nz.co.bitmonkey.westpac.account.BranchNumber;
 import nz.co.bitmonkey.westpac.account.CustomerId;
 import nz.co.bitmonkey.westpac.account.CustomerName;
+import nz.co.bitmonkey.westpac.account.Idempotency;
+import nz.co.bitmonkey.westpac.account.IdempotencyKey;
 import nz.co.bitmonkey.westpac.account.Nickname;
 import nz.co.bitmonkey.westpac.account.OpenAccount;
 import nz.co.bitmonkey.westpac.account.OpenResult;
+import nz.co.bitmonkey.westpac.account.RequestFingerprint;
 import nz.co.bitmonkey.westpac.account.SavingsAccount;
 import nz.co.bitmonkey.westpac.web.Problem;
+import org.jspecify.annotations.Nullable;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -27,6 +31,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -37,6 +42,7 @@ public final class AccountController {
 
     static final String PATH = "/api/v1/savings-accounts";
 
+    private static final String IDEMPOTENCY_KEY = "Idempotency-Key";
     private static final String IDEMPOTENT_REPLAYED = "Idempotent-Replayed";
 
     private final AccountWriterService writer;
@@ -54,15 +60,27 @@ public final class AccountController {
     }
 
     /**
-     * Opens a savings account.
+     * Opens a savings account. A request with an {@code Idempotency-Key} header replays the account first opened with
+     * that key. The header must be one UUID in its standard text form.
      *
      * @param request the account to open
+     * @param keyHeader the {@code Idempotency-Key} header, with the values of repeated lines joined by commas
      * @param http the HTTP request
-     * @return {@code 201} with the new account or a replayed one, or {@code 422} with the rule that refused it
+     * @return {@code 201} with the new account or a replayed one, {@code 400} for a bad {@code Idempotency-Key} header,
+     *     or {@code 422} with the rule that refused it
      */
     @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> open(@Valid @RequestBody OpenAccountRequest request, HttpServletRequest http) {
-        OpenAccount open = openAccount(request);
+    public ResponseEntity<?> open(
+            @Valid @RequestBody OpenAccountRequest request,
+            @RequestHeader(name = IDEMPOTENCY_KEY, required = false) @Nullable String keyHeader,
+            HttpServletRequest http) {
+
+        Optional<UUID> key = Optional.ofNullable(keyHeader).flatMap(AccountController::keyOf);
+        if (keyHeader != null && key.isEmpty()) {
+            return problem(Problem.MALFORMED_REQUEST, http, "The Idempotency-Key header is not valid");
+        }
+
+        OpenAccount open = openAccount(request, key.map(IdempotencyKey::new).orElse(null));
 
         return switch (writer.open(open)) {
             case OpenResult.Opened(var account) -> created(account).body(AccountResponse.of(account));
@@ -99,17 +117,34 @@ public final class AccountController {
     }
 
     /**
-     * Gives a validated request in domain types, with no idempotency key.
+     * Gives the key that an {@code Idempotency-Key} header holds, when it is one UUID in its standard text form in
+     * either case. A short form such as {@code 1-1-1-1-1} parses, but its {@code toString()} differs from it, so it
+     * gives empty.
+     */
+    private static Optional<UUID> keyOf(String value) {
+        try {
+            return Optional.of(UUID.fromString(value))
+                    .filter(uuid -> uuid.toString().equalsIgnoreCase(value));
+        } catch (IllegalArgumentException e) {
+            return Optional.empty();
+        }
+    }
+
+    /**
+     * Gives a validated request in domain types. A request with a key also carries the fingerprint of its fields.
      *
      * @throws NullPointerException if a required component is {@code null}, which Bean Validation refuses first
      */
-    private static OpenAccount openAccount(OpenAccountRequest request) {
-        return new OpenAccount(
-                new CustomerId(Objects.requireNonNull(request.customerId(), "customerId")),
-                new BranchNumber(Objects.requireNonNull(request.branch(), "branch")),
-                new CustomerName(Objects.requireNonNull(request.customerName(), "customerName")),
-                Optional.ofNullable(request.nickname()).map(Nickname::new).orElse(null),
-                null);
+    private static OpenAccount openAccount(OpenAccountRequest request, @Nullable IdempotencyKey key) {
+        CustomerId customerId = new CustomerId(Objects.requireNonNull(request.customerId(), "customerId"));
+        BranchNumber branch = new BranchNumber(Objects.requireNonNull(request.branch(), "branch"));
+        CustomerName name = new CustomerName(Objects.requireNonNull(request.customerName(), "customerName"));
+        Nickname nickname =
+                Optional.ofNullable(request.nickname()).map(Nickname::new).orElse(null);
+        Idempotency idempotency =
+                key == null ? null : new Idempotency(key, RequestFingerprint.of(customerId, branch, name, nickname));
+
+        return new OpenAccount(customerId, branch, name, nickname, idempotency);
     }
 
     private static ResponseEntity.BodyBuilder created(SavingsAccount account) {

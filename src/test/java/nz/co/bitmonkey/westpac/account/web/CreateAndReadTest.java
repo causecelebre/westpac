@@ -144,6 +144,104 @@ class CreateAndReadTest extends ApplicationTest {
     }
 
     @Test
+    void replaysACreateWithTheSameKeyAndOpensOneAccount() throws IOException, InterruptedException {
+        UUID customer = UUID.randomUUID();
+        String key = UUID.randomUUID().toString();
+        String request = body(customer.toString(), "0123", "Jane Citizen", "Rainy Day Fund");
+
+        HttpResponse<String> first = post(request, key);
+        HttpResponse<String> second = post(request, key);
+
+        assertThat(first.statusCode()).isEqualTo(201);
+        assertThat(second.statusCode()).isEqualTo(201);
+        assertThat(first.headers().firstValue("Idempotent-Replayed")).isEmpty();
+        assertThat(second.headers().allValues("Idempotent-Replayed")).containsExactly("true");
+        assertThat(second.headers().firstValue("Location"))
+                .isPresent()
+                .isEqualTo(first.headers().firstValue("Location"));
+        assertThat(json.readTree(second.body())).isEqualTo(json.readTree(first.body()));
+        assertThat(repository.accountsOf(new CustomerId(customer)).numbers()).hasSize(1);
+    }
+
+    @Test
+    void replaysALowerCaseKeySentInUpperCase() throws IOException, InterruptedException {
+        String key = UUID.randomUUID().toString();
+        String request = body(UUID.randomUUID().toString(), "0123", "Jane Citizen", null);
+
+        HttpResponse<String> first = post(request, key);
+        HttpResponse<String> second = post(request, key.toUpperCase(Locale.ROOT));
+
+        assertThat(second.statusCode()).isEqualTo(201);
+        assertThat(second.headers().firstValue("Idempotent-Replayed")).hasValue("true");
+        assertThat(idOf(second)).isEqualTo(idOf(first));
+    }
+
+    @Test
+    void refusesTheSameKeyWithAnotherNicknameAndWritesNoRow() throws IOException, InterruptedException {
+        UUID customer = UUID.randomUUID();
+        String key = UUID.randomUUID().toString();
+        assertThat(post(body(customer.toString(), "0123", "Jane Citizen", "Rainy Day Fund"), key)
+                        .statusCode())
+                .isEqualTo(201);
+
+        HttpResponse<String> response = post(body(customer.toString(), "0123", "Jane Citizen", "Holiday Fund"), key);
+
+        assertProblem(response, 422, "idempotency-key-reused", PATH);
+        assertThat(repository.accountsOf(new CustomerId(customer)).numbers()).hasSize(1);
+    }
+
+    @Test
+    void replaysABodyThatNormalisesToTheFirstBody() throws IOException, InterruptedException {
+        String customer = UUID.randomUUID().toString();
+        String key = UUID.randomUUID().toString();
+
+        HttpResponse<String> first = post(body(customer, "0123", "Jane Citizen", null), key);
+        HttpResponse<String> second = post(body(customer, "0123", "Jane  Citizen", null), key);
+
+        assertThat(second.statusCode()).isEqualTo(201);
+        assertThat(second.headers().firstValue("Idempotent-Replayed")).hasValue("true");
+        assertThat(idOf(second)).isEqualTo(idOf(first));
+    }
+
+    @Test
+    void opensAnAccountForEachCustomerThatSendsTheSameKey() throws IOException, InterruptedException {
+        UUID jane = UUID.randomUUID();
+        UUID john = UUID.randomUUID();
+        String key = UUID.randomUUID().toString();
+
+        HttpResponse<String> forJane = post(body(jane.toString(), "0123", "Jane Citizen", null), key);
+        HttpResponse<String> forJohn = post(body(john.toString(), "0123", "Jane Citizen", null), key);
+
+        assertThat(forJane.statusCode()).isEqualTo(201);
+        assertThat(forJohn.statusCode()).isEqualTo(201);
+        assertThat(forJohn.headers().firstValue("Idempotent-Replayed")).isEmpty();
+        assertThat(idOf(forJohn)).isNotEqualTo(idOf(forJane));
+        assertThat(repository.accountsOf(new CustomerId(jane)).numbers()).hasSize(1);
+        assertThat(repository.accountsOf(new CustomerId(john)).numbers()).hasSize(1);
+    }
+
+    @Test
+    void replaysTheFifthAccountWhenTheCustomerIsAtTheLimit() throws IOException, InterruptedException {
+        UUID customer = UUID.randomUUID();
+        for (int i = 0; i < 4; i++) {
+            assertThat(post(body(customer.toString(), "0123", "Jane Citizen", null))
+                            .statusCode())
+                    .isEqualTo(201);
+        }
+        String key = UUID.randomUUID().toString();
+        String fifth = body(customer.toString(), "0123", "Jane Citizen", "Rainy Day Fund");
+        HttpResponse<String> first = post(fifth, key);
+        assertThat(first.statusCode()).isEqualTo(201);
+
+        HttpResponse<String> replay = post(fifth, key);
+
+        assertThat(replay.statusCode()).isEqualTo(201);
+        assertThat(replay.headers().firstValue("Idempotent-Replayed")).hasValue("true");
+        assertThat(idOf(replay)).isEqualTo(idOf(first));
+        assertThat(repository.accountsOf(new CustomerId(customer)).numbers()).hasSize(5);
+    }
+
+    @Test
     void answersAnUnplannedFaultWith500() throws Exception {
         HttpResponse<String> response =
                 withAccountNumbersRunOut(() -> post(body(UUID.randomUUID().toString(), "0123", "Jane Citizen", null)));
@@ -198,9 +296,21 @@ class CreateAndReadTest extends ApplicationTest {
         return json.writeValueAsString(body);
     }
 
+    private static String idOf(HttpResponse<String> response) {
+        return json.readTree(response.body()).get("id").asString();
+    }
+
     private HttpResponse<String> post(String body) throws IOException, InterruptedException {
-        HttpRequest request = HttpRequest.newBuilder(uri(PATH))
-                .header("Content-Type", "application/json")
+        return send(HttpRequest.newBuilder(uri(PATH)), body);
+    }
+
+    private HttpResponse<String> post(String body, String idempotencyKey) throws IOException, InterruptedException {
+        return send(HttpRequest.newBuilder(uri(PATH)).header("Idempotency-Key", idempotencyKey), body);
+    }
+
+    private static HttpResponse<String> send(HttpRequest.Builder builder, String body)
+            throws IOException, InterruptedException {
+        HttpRequest request = builder.header("Content-Type", "application/json")
                 .POST(BodyPublishers.ofString(body))
                 .build();
         HttpResponse<String> response = client.send(request, BodyHandlers.ofString());
