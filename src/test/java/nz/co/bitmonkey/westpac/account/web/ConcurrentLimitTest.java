@@ -47,13 +47,16 @@ class ConcurrentLimitTest extends ApplicationTest {
         UUID customer = UUID.randomUUID();
         CountDownLatch start = new CountDownLatch(1);
         List<Future<Integer>> statuses = new ArrayList<>();
+        List<UUID> keys = new ArrayList<>();
 
         try (ExecutorService threads = Executors.newVirtualThreadPerTaskExecutor()) {
             for (int i = 0; i < CREATES; i++) {
                 String branch = String.format(Locale.ROOT, "%04d", FIRST_BRANCH + i);
+                UUID key = UUID.randomUUID();
+                keys.add(key);
                 statuses.add(threads.submit(() -> {
                     start.await();
-                    return create(customer, branch);
+                    return create(customer, branch, key);
                 }));
             }
             start.countDown();
@@ -72,14 +75,14 @@ class ConcurrentLimitTest extends ApplicationTest {
         for (int i = 0; i < CREATES; i++) {
             if (answers.get(i) == 409) {
                 String branch = String.format(Locale.ROOT, "%04d", FIRST_BRANCH + i);
-                assertThat(create(customer, branch)).isIn(201, 422);
+                assertThat(create(customer, branch, keys.get(i))).isIn(201, 422);
             }
         }
 
         assertThat(rowsOf(customer)).isEqualTo(5);
     }
 
-    private int create(UUID customer, String branch) throws IOException, InterruptedException {
+    private int create(UUID customer, String branch, UUID key) throws IOException, InterruptedException {
         String body = json.writeValueAsString(json.createObjectNode()
                 .put("customerId", customer.toString())
                 .put("branch", branch)
@@ -87,6 +90,7 @@ class ConcurrentLimitTest extends ApplicationTest {
         HttpRequest request = HttpRequest.newBuilder(
                         URI.create("http://localhost:" + environment.getRequiredProperty("local.server.port") + PATH))
                 .header("Content-Type", "application/json")
+                .header("Idempotency-Key", key.toString())
                 .POST(BodyPublishers.ofString(body))
                 .build();
         return client.send(request, BodyHandlers.discarding()).statusCode();

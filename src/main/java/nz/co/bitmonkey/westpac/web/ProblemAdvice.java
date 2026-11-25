@@ -50,7 +50,7 @@ final class ProblemAdvice extends ResponseEntityExceptionHandler {
     private static final String RETRY_AFTER_SECONDS = "5";
 
     private static final Set<String> RACE_CONSTRAINTS =
-            Set.of("savings_account_customer_uk", "savings_account_number_uk");
+            Set.of("savings_account_customer_uk", "savings_account_number_uk", "savings_account_idempotent_uk");
 
     /** Answers broken field rules with {@code 400 validation-failed}, one error for each failing field. */
     @Override
