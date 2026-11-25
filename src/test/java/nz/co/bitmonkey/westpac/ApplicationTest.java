@@ -21,6 +21,7 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 import org.testcontainers.utility.DockerImageName;
 import org.testcontainers.utility.MountableFile;
@@ -33,14 +34,18 @@ public abstract class ApplicationTest {
     private static final String INIT_SCRIPT = "docker/postgres/init/01-roles-and-schema.sql";
     private static final String OWNER_PASSWORD = "test-owner-password";
     private static final String APP_PASSWORD = "test-app-password";
+    private static final int REDIS_PORT = 6379;
     private static final PostgreSQLContainer POSTGRES = startPostgres();
+    private static final GenericContainer<?> REDIS = startRedis();
 
     @DynamicPropertySource
-    static void databaseProperties(DynamicPropertyRegistry registry) {
+    static void storeProperties(DynamicPropertyRegistry registry) {
         registry.add("DB_HOST", POSTGRES::getHost);
         registry.add("DB_PORT", () -> POSTGRES.getMappedPort(PostgreSQLContainer.POSTGRESQL_PORT));
         registry.add("DB_APP_PASSWORD", () -> APP_PASSWORD);
         registry.add("DB_OWNER_PASSWORD", () -> OWNER_PASSWORD);
+        registry.add("REDIS_HOST", REDIS::getHost);
+        registry.add("REDIS_PORT", () -> REDIS.getMappedPort(REDIS_PORT));
     }
 
     protected static JdbcClient asOwner() {
@@ -50,6 +55,14 @@ public abstract class ApplicationTest {
     protected static JdbcClient asSuperuser() {
         return JdbcClient.create(
                 new DriverManagerDataSource(POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword()));
+    }
+
+    protected static String redisCli(String... arguments) throws IOException, InterruptedException {
+        String[] command = new String[arguments.length + 1];
+        command[0] = "redis-cli";
+        System.arraycopy(arguments, 0, command, 1, arguments.length);
+
+        return REDIS.execInContainer(command).getStdout().strip();
     }
 
     protected static Connection ownerTransaction() throws SQLException {
@@ -92,7 +105,8 @@ public abstract class ApplicationTest {
 
     @SuppressWarnings("resource")
     private static PostgreSQLContainer startPostgres() {
-        PostgreSQLContainer container = new PostgreSQLContainer(composePostgresImage())
+        PostgreSQLContainer container = new PostgreSQLContainer(
+                        composeImage("postgres").asCompatibleSubstituteFor("postgres"))
                 .withDatabaseName("westpac")
                 .withEnv("DB_OWNER_PASSWORD", OWNER_PASSWORD)
                 .withEnv("DB_APP_PASSWORD", APP_PASSWORD)
@@ -103,15 +117,23 @@ public abstract class ApplicationTest {
         return container;
     }
 
-    private static DockerImageName composePostgresImage() {
+    @SuppressWarnings("resource")
+    private static GenericContainer<?> startRedis() {
+        GenericContainer<?> container = new GenericContainer<>(composeImage("redis")).withExposedPorts(REDIS_PORT);
+        container.start();
+
+        return container;
+    }
+
+    private static DockerImageName composeImage(String name) {
         try {
-            Matcher image = Pattern.compile("^\\s+image:\\s+(postgres:\\S+)$", Pattern.MULTILINE)
+            Matcher image = Pattern.compile("^\\s+image:\\s+(" + Pattern.quote(name) + ":\\S+)$", Pattern.MULTILINE)
                     .matcher(Files.readString(Path.of("compose.yaml")));
             if (!image.find()) {
-                throw new IllegalStateException("compose.yaml names no postgres image");
+                throw new IllegalStateException("compose.yaml names no " + name + " image");
             }
 
-            return DockerImageName.parse(image.group(1)).asCompatibleSubstituteFor("postgres");
+            return DockerImageName.parse(image.group(1));
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }

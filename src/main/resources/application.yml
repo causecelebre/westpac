@@ -9,6 +9,12 @@ spring:
     default-schema: westpac
     validate-on-migrate: true
     clean-disabled: true
+  data:
+    redis:
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT}
+      timeout: 250ms
+      connect-timeout: 250ms
   jackson:
     factory:
       constraints:
