@@ -35,6 +35,7 @@ dependencies {
   implementation libs.spring.boot.starter.validation
   implementation libs.spring.boot.starter.webmvc
   implementation libs.flyway.database.postgresql
+  implementation libs.java.uuid.generator
   runtimeOnly libs.postgresql
   testImplementation libs.spring.boot.starter.flyway.test
   testImplementation libs.spring.boot.starter.jdbc.test
