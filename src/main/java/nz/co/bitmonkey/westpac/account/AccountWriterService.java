@@ -5,6 +5,7 @@ package nz.co.bitmonkey.westpac.account;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.util.Optional;
 import nz.co.bitmonkey.westpac.account.store.AccountRepository;
 import nz.co.bitmonkey.westpac.moderation.NicknamePolicy;
 import org.springframework.stereotype.Service;
@@ -68,7 +69,8 @@ public final class AccountWriterService {
      * </ul>
      *
      * @param request the account to open
-     * @return the new account, or why none was opened
+     * @return the new account, the account that an earlier request with the same idempotency key opened, or why none
+     *     was opened
      */
     public OpenResult open(OpenAccount request) {
         if (!Bank03.allows(request.branch())) {
@@ -81,6 +83,14 @@ public final class AccountWriterService {
         }
 
         return transactions.execute(status -> {
+            Idempotency idempotency = request.idempotency();
+            if (idempotency != null) {
+                Optional<StoredAccount> stored = repository.findByKey(request.customerId(), idempotency.key());
+                if (stored.isPresent()) {
+                    return replayOrRefuse(stored.get(), idempotency.fingerprint());
+                }
+            }
+
             CustomerAccounts accounts = repository.accountsOf(request.customerId());
 
             if (accounts.numbers().size() >= CustomerAccountLimit.MAX) {
@@ -98,5 +108,13 @@ public final class AccountWriterService {
 
             return new OpenResult.Opened(account);
         });
+    }
+
+    private static OpenResult replayOrRefuse(StoredAccount stored, RequestFingerprint fingerprint) {
+        if (stored.fingerprint().equals(fingerprint)) {
+            return new OpenResult.Replayed(stored.account());
+        }
+
+        return new OpenResult.KeyReused();
     }
 }

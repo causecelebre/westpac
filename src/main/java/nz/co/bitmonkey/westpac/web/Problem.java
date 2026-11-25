@@ -20,6 +20,10 @@ public enum Problem {
     NICKNAME_NOT_ALLOWED(HttpStatus.UNPROCESSABLE_CONTENT, "nickname-not-allowed", "The nickname is not allowed"),
     ACCOUNT_LIMIT_REACHED(
             HttpStatus.UNPROCESSABLE_CONTENT, "account-limit-reached", "The customer has the most accounts allowed"),
+    IDEMPOTENCY_KEY_REUSED(
+            HttpStatus.UNPROCESSABLE_CONTENT,
+            "idempotency-key-reused",
+            "The idempotency key was used with a different request"),
     CONCURRENT_REQUEST(
             HttpStatus.CONFLICT, "concurrent-request", "Another request for the customer was completed first"),
     SERVICE_UNAVAILABLE(

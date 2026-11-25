@@ -13,6 +13,14 @@ public sealed interface OpenResult {
      */
     record Opened(SavingsAccount account) implements OpenResult {}
 
+    /**
+     * An earlier request with the same idempotency key and the same fingerprint opened the account. No account was
+     * opened.
+     *
+     * @param account the account the earlier request opened
+     */
+    record Replayed(SavingsAccount account) implements OpenResult {}
+
     /** The bank does not own the requested branch. No account was opened. */
     record BranchRefused() implements OpenResult {}
 
@@ -25,4 +33,7 @@ public sealed interface OpenResult {
      * @param limit the most accounts one customer can hold
      */
     record LimitReached(int limit) implements OpenResult {}
+
+    /** An earlier request with the same idempotency key had a different fingerprint. No account was opened. */
+    record KeyReused() implements OpenResult {}
 }

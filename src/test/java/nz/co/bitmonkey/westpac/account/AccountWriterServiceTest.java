@@ -105,6 +105,52 @@ class AccountWriterServiceTest extends ApplicationTest {
         assertThat(service.open(request(customer, BRANCH, names.get(1)))).isEqualTo(new OpenResult.LimitReached(5));
     }
 
+    @Test
+    void replaysTheSameKeyAndFingerprintWithTheFirstAccount() {
+        CustomerId customer = newCustomer();
+        Idempotency idempotency = idempotency(customer, NAME);
+        SavingsAccount first = opened(keyed(customer, NAME, idempotency));
+
+        assertThat(service.open(keyed(customer, NAME, idempotency))).isEqualTo(new OpenResult.Replayed(first));
+        assertThat(repository.accountsOf(customer).numbers()).hasSize(1);
+    }
+
+    @Test
+    void refusesTheSameKeyWithAnotherFingerprintAndWritesNoRow() {
+        CustomerId customer = newCustomer();
+        Idempotency idempotency = idempotency(customer, NAME);
+        opened(keyed(customer, NAME, idempotency));
+        CustomerName other = new CustomerName("Aroha Smith");
+
+        assertThat(service.open(
+                        keyed(customer, other, new Idempotency(idempotency.key(), fingerprint(customer, other)))))
+                .isEqualTo(new OpenResult.KeyReused());
+        assertThat(repository.accountsOf(customer).numbers()).hasSize(1);
+    }
+
+    @Test
+    void replaysTheFifthAccountRatherThanRefusingAtTheLimit() {
+        CustomerId customer = newCustomer();
+        for (int i = 1; i < CustomerAccountLimit.MAX; i++) {
+            opened(request(customer, BRANCH, NAME));
+        }
+        Idempotency idempotency = idempotency(customer, NAME);
+        SavingsAccount fifth = opened(keyed(customer, NAME, idempotency));
+
+        assertThat(service.open(keyed(customer, NAME, idempotency))).isEqualTo(new OpenResult.Replayed(fifth));
+    }
+
+    @Test
+    void opensANewAccountForEachRequestWithNoKey() {
+        CustomerId customer = newCustomer();
+
+        SavingsAccount first = opened(request(customer, BRANCH, NAME));
+        SavingsAccount second = opened(request(customer, BRANCH, NAME));
+
+        assertThat(second.id()).isNotEqualTo(first.id());
+        assertThat(repository.accountsOf(customer).numbers()).hasSize(2);
+    }
+
     private SavingsAccount opened(OpenAccount request) {
         OpenResult result = service.open(request);
         assertThat(result).isInstanceOf(OpenResult.Opened.class);
@@ -113,6 +159,18 @@ class AccountWriterServiceTest extends ApplicationTest {
 
     private static OpenAccount request(CustomerId customer, BranchNumber branch, CustomerName name) {
         return new OpenAccount(customer, branch, name, null, null);
+    }
+
+    private static OpenAccount keyed(CustomerId customer, CustomerName name, Idempotency idempotency) {
+        return new OpenAccount(customer, BRANCH, name, null, idempotency);
+    }
+
+    private static Idempotency idempotency(CustomerId customer, CustomerName name) {
+        return new Idempotency(new IdempotencyKey(UUID.randomUUID()), fingerprint(customer, name));
+    }
+
+    private static RequestFingerprint fingerprint(CustomerId customer, CustomerName name) {
+        return RequestFingerprint.of(customer, BRANCH, name, null);
     }
 
     private static CustomerId newCustomer() {
