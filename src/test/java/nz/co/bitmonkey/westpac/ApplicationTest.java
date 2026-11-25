@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.concurrent.Callable;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -39,6 +40,20 @@ public abstract class ApplicationTest {
 
     protected static JdbcClient asOwner() {
         return JdbcClient.create(new DriverManagerDataSource(POSTGRES.getJdbcUrl(), "westpac_owner", OWNER_PASSWORD));
+    }
+
+    protected static <T> T withAccountNumbersRunOut(Callable<T> action) throws Exception {
+        JdbcClient owner = asOwner();
+        owner.sql("select nextval('account_number_seq')").query(Long.class).single();
+        long last = owner.sql("select nextval('account_number_seq')")
+                .query(Long.class)
+                .single();
+        owner.sql("alter sequence account_number_seq maxvalue " + last).update();
+        try {
+            return action.call();
+        } finally {
+            owner.sql("alter sequence account_number_seq maxvalue 999999").update();
+        }
     }
 
     @SuppressWarnings("resource")

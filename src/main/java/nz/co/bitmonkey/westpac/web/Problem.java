@@ -10,11 +10,15 @@ import org.springframework.http.ProblemDetail;
 
 /** The kinds of problem the service answers with, each with its HTTP status, permanent code and title. */
 public enum Problem {
+    MALFORMED_REQUEST(HttpStatus.BAD_REQUEST, "malformed-request", "The request cannot be read"),
     VALIDATION_FAILED(HttpStatus.BAD_REQUEST, "validation-failed", "The request is not valid"),
     ACCOUNT_NOT_FOUND(HttpStatus.NOT_FOUND, "account-not-found", "The account does not exist"),
+    UNSUPPORTED_MEDIA_TYPE(
+            HttpStatus.UNSUPPORTED_MEDIA_TYPE, "unsupported-media-type", "The media type is not supported"),
     BRANCH_NOT_ALLOWED(HttpStatus.UNPROCESSABLE_CONTENT, "branch-not-allowed", "The branch is not allowed"),
     ACCOUNT_LIMIT_REACHED(
-            HttpStatus.UNPROCESSABLE_CONTENT, "account-limit-reached", "The customer has the most accounts allowed");
+            HttpStatus.UNPROCESSABLE_CONTENT, "account-limit-reached", "The customer has the most accounts allowed"),
+    INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "internal-error", "The service could not complete the request");
 
     private static final String TYPE_PREFIX = "tag:bitmonkey.co.nz,2026:problem/";
 
@@ -41,6 +45,7 @@ public enum Problem {
         problem.setTitle(title);
         problem.setInstance(URI.create(request.getRequestURI()));
         problem.setProperty("code", code);
+
         return problem;
     }
 }

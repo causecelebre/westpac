@@ -25,7 +25,6 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.env.Environment;
-import org.springframework.jdbc.core.simple.JdbcClient;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.databind.node.ObjectNode;
@@ -134,20 +133,11 @@ class CreateAndReadTest extends ApplicationTest {
     }
 
     @Test
-    void answersAnUnplannedFaultWith500() throws IOException, InterruptedException {
-        JdbcClient owner = asOwner();
-        owner.sql("select nextval('account_number_seq')").query(Long.class).single();
-        long last = owner.sql("select nextval('account_number_seq')")
-                .query(Long.class)
-                .single();
-        owner.sql("alter sequence account_number_seq maxvalue " + last).update();
-        try {
-            HttpResponse<String> response = post(body(UUID.randomUUID().toString(), "0123", "Jane Citizen", null));
+    void answersAnUnplannedFaultWith500() throws Exception {
+        HttpResponse<String> response =
+                withAccountNumbersRunOut(() -> post(body(UUID.randomUUID().toString(), "0123", "Jane Citizen", null)));
 
-            assertThat(response.statusCode()).isEqualTo(500);
-        } finally {
-            owner.sql("alter sequence account_number_seq maxvalue 999999").update();
-        }
+        assertThat(response.statusCode()).isEqualTo(500);
     }
 
     @ParameterizedTest

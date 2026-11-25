@@ -9,6 +9,11 @@ spring:
     default-schema: westpac
     validate-on-migrate: true
     clean-disabled: true
+  jackson:
+    deserialization:
+      fail-on-unknown-properties: true
+    read:
+      strict-duplicate-detection: true
 
 management:
   server:
