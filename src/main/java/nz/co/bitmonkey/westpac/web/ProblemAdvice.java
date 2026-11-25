@@ -26,6 +26,7 @@ import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.transaction.CannotCreateTransactionException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.HttpMediaTypeNotAcceptableException;
 import org.springframework.web.HttpMediaTypeNotSupportedException;
@@ -141,13 +142,18 @@ final class ProblemAdvice extends ResponseEntityExceptionHandler {
 
     /**
      * Answers a database that cannot be reached, or that did not answer in time, with {@code 503 service-unavailable}
-     * and {@code Retry-After: 5}.
+     * and {@code Retry-After: 5}. A transaction that cannot get a connection when it starts counts as one that cannot
+     * reach the database.
      *
      * @param exception the failure from the database
      * @param request the request that met it
      * @return the problem
      */
-    @ExceptionHandler({DataAccessResourceFailureException.class, TransientDataAccessException.class})
+    @ExceptionHandler({
+        DataAccessResourceFailureException.class,
+        TransientDataAccessException.class,
+        CannotCreateTransactionException.class
+    })
     ResponseEntity<ProblemDetail> handleDatabaseUnavailable(Exception exception, HttpServletRequest request) {
         return ResponseEntity.of(Problem.SERVICE_UNAVAILABLE.body(
                         request, "The database is not available now. Send the request again later"))
