@@ -3,6 +3,7 @@
 
 package nz.co.bitmonkey.westpac.account;
 
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -25,5 +26,15 @@ public record AccountId(UUID value) {
             throw new IllegalArgumentException(
                     String.format("account id must be UUID version 7, got version %s: %s", value.version(), value));
         }
+    }
+
+    /**
+     * Gives the account id that {@code value} is, or empty when {@code value} is not version 7 and so cannot be one.
+     *
+     * @param value any UUID
+     * @return the account id, or empty
+     */
+    public static Optional<AccountId> from(UUID value) {
+        return value.version() == VERSION ? Optional.of(new AccountId(value)) : Optional.empty();
     }
 }

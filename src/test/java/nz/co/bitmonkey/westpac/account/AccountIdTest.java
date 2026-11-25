@@ -32,4 +32,22 @@ class AccountIdTest {
                 .isThrownBy(() -> new AccountId(value))
                 .withMessageContaining("version " + value.version());
     }
+
+    @Test
+    void fromGivesTheIdForVersion7() {
+        UUID value = UUID.fromString("01936b2e-7c4a-7f3d-9a51-2c8e4b6d1f00");
+
+        assertThat(AccountId.from(value)).contains(new AccountId(value));
+    }
+
+    @ParameterizedTest
+    @ValueSource(
+            strings = {
+                "c232ab00-9414-11ec-b3c8-9e6bdeced846",
+                "7d3f9c2a-5b1e-4f6a-8c0d-2e9b4a7f1c35",
+                "1ec9414c-232a-6b00-b3c8-9e6bdeced846"
+            })
+    void fromGivesEmptyForOtherVersions(UUID value) {
+        assertThat(AccountId.from(value)).isEmpty();
+    }
 }

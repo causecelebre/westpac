@@ -3,10 +3,12 @@
 
 package nz.co.bitmonkey.westpac.config;
 
+import jakarta.servlet.DispatcherType;
 import org.springframework.boot.security.autoconfigure.actuate.web.servlet.EndpointRequest;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -32,12 +34,22 @@ public final class SecurityConfig {
                 .build();
     }
 
-    /** Refuses every request that no other chain matches, with {@code 401}. */
+    /**
+     * Permits the two savings account routes and refuses every other request, with {@code 401}. The error dispatch is
+     * permitted, so a fault that reaches the error page keeps its {@code 500}.
+     */
     @Bean
     @Order(2)
     SecurityFilterChain apiChain(HttpSecurity http) {
         return stateless(http)
-                .authorizeHttpRequests(requests -> requests.anyRequest().denyAll())
+                .authorizeHttpRequests(requests -> requests.dispatcherTypeMatchers(DispatcherType.ERROR)
+                        .permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/savings-accounts")
+                        .permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/savings-accounts/*")
+                        .permitAll()
+                        .anyRequest()
+                        .denyAll())
                 .build();
     }
 
