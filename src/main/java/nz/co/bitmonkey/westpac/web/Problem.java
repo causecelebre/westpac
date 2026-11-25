@@ -21,6 +21,8 @@ public enum Problem {
             HttpStatus.UNPROCESSABLE_CONTENT, "account-limit-reached", "The customer has the most accounts allowed"),
     CONCURRENT_REQUEST(
             HttpStatus.CONFLICT, "concurrent-request", "Another request for the customer was completed first"),
+    SERVICE_UNAVAILABLE(
+            HttpStatus.SERVICE_UNAVAILABLE, "service-unavailable", "The service cannot complete the request now"),
     INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "internal-error", "The service could not complete the request");
 
     private static final String TYPE_PREFIX = "tag:bitmonkey.co.nz,2026:problem/";
