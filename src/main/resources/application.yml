@@ -30,3 +30,5 @@ management:
 westpac:
   account-number:
     bank: "03"
+  moderation:
+    list-location: classpath:moderation/offensive-nicknames.txt
