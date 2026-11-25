@@ -11,6 +11,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.SpringBootTest.WebEnvironment;
+import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.jdbc.datasource.DriverManagerDataSource;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.postgresql.PostgreSQLContainer;
@@ -33,6 +35,10 @@ public abstract class ApplicationTest {
         registry.add("DB_PORT", () -> POSTGRES.getMappedPort(PostgreSQLContainer.POSTGRESQL_PORT));
         registry.add("DB_APP_PASSWORD", () -> APP_PASSWORD);
         registry.add("DB_OWNER_PASSWORD", () -> OWNER_PASSWORD);
+    }
+
+    protected static JdbcClient asOwner() {
+        return JdbcClient.create(new DriverManagerDataSource(POSTGRES.getJdbcUrl(), "westpac_owner", OWNER_PASSWORD));
     }
 
     @SuppressWarnings("resource")
