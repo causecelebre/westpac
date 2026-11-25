@@ -1,0 +1,107 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Bitmonkey NZ Ltd
+
+package nz.co.bitmonkey.westpac.account;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+import java.util.List;
+import java.util.UUID;
+import nz.co.bitmonkey.westpac.ApplicationTest;
+import nz.co.bitmonkey.westpac.account.store.AccountRepository;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+
+class AccountWriterServiceTest extends ApplicationTest {
+
+    private static final BranchNumber BRANCH = new BranchNumber("0123");
+    private static final BranchNumber OTHER_BRANCH = new BranchNumber("1501");
+    private static final CustomerName NAME = new CustomerName("Aroha Ngata");
+
+    @Autowired
+    private AccountWriterService service;
+
+    @Autowired
+    private AccountRepository repository;
+
+    @Test
+    void opensFiveAccountsAndRefusesTheSixth() {
+        CustomerId customer = newCustomer();
+        for (int i = 0; i < CustomerAccountLimit.MAX; i++) {
+            assertThat(service.open(request(customer, BRANCH, NAME))).isInstanceOf(OpenResult.Opened.class);
+        }
+
+        assertThat(service.open(request(customer, BRANCH, NAME))).isEqualTo(new OpenResult.LimitReached(5));
+        assertThat(repository.accountsOf(customer).numbers()).hasSize(5);
+    }
+
+    @Test
+    void usesOneBaseForEachBranchAndCountsAccountsAtEveryBranch() {
+        CustomerId customer = newCustomer();
+
+        AccountNumber first = opened(request(customer, BRANCH, NAME)).number();
+        AccountNumber second = opened(request(customer, BRANCH, NAME)).number();
+        AccountNumber elsewhere = opened(request(customer, OTHER_BRANCH, NAME)).number();
+        AccountNumber third = opened(request(customer, BRANCH, NAME)).number();
+        AccountNumber secondElsewhere =
+                opened(request(customer, OTHER_BRANCH, NAME)).number();
+
+        assertThat(first.suffix()).isZero();
+        assertThat(second).isEqualTo(withSuffix(first, 1));
+        assertThat(elsewhere.branch()).isEqualTo(OTHER_BRANCH);
+        assertThat(elsewhere.suffix()).isZero();
+        assertThat(elsewhere.base()).isNotEqualTo(first.base());
+        assertThat(third).isEqualTo(withSuffix(first, 2));
+        assertThat(secondElsewhere).isEqualTo(withSuffix(elsewhere, 1));
+        assertThat(service.open(request(customer, OTHER_BRANCH, NAME))).isEqualTo(new OpenResult.LimitReached(5));
+    }
+
+    @Test
+    void refusesABranchTheBankDoesNotOwnAndWritesNoRow() {
+        CustomerId customer = newCustomer();
+
+        assertThat(service.open(request(customer, new BranchNumber("1000"), NAME)))
+                .isEqualTo(new OpenResult.BranchRefused());
+        assertThat(repository.accountsOf(customer).numbers()).isEmpty();
+    }
+
+    @Test
+    void givesTwoCustomersWithTheSameNameALimitEach() {
+        CustomerId one = newCustomer();
+        CustomerId other = newCustomer();
+        for (int i = 0; i < CustomerAccountLimit.MAX; i++) {
+            opened(request(one, BRANCH, NAME));
+        }
+
+        assertThat(service.open(request(other, BRANCH, NAME))).isInstanceOf(OpenResult.Opened.class);
+    }
+
+    @Test
+    void givesOneCustomerWithTwoNamesOneLimit() {
+        CustomerId customer = newCustomer();
+        List<CustomerName> names = List.of(NAME, new CustomerName("Aroha Smith"));
+        for (int i = 0; i < CustomerAccountLimit.MAX; i++) {
+            opened(request(customer, BRANCH, names.get(i % 2)));
+        }
+
+        assertThat(service.open(request(customer, BRANCH, names.get(1)))).isEqualTo(new OpenResult.LimitReached(5));
+    }
+
+    private SavingsAccount opened(OpenAccount request) {
+        OpenResult result = service.open(request);
+        assertThat(result).isInstanceOf(OpenResult.Opened.class);
+        return ((OpenResult.Opened) result).account();
+    }
+
+    private static OpenAccount request(CustomerId customer, BranchNumber branch, CustomerName name) {
+        return new OpenAccount(customer, branch, name, null, null);
+    }
+
+    private static CustomerId newCustomer() {
+        return new CustomerId(UUID.randomUUID());
+    }
+
+    private static AccountNumber withSuffix(AccountNumber number, int suffix) {
+        return new AccountNumber(number.bank(), number.branch(), number.base(), suffix);
+    }
+}
