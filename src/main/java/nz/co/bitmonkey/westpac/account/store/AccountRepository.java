@@ -16,8 +16,11 @@ import nz.co.bitmonkey.westpac.account.CustomerAccounts;
 import nz.co.bitmonkey.westpac.account.CustomerId;
 import nz.co.bitmonkey.westpac.account.CustomerName;
 import nz.co.bitmonkey.westpac.account.Idempotency;
+import nz.co.bitmonkey.westpac.account.IdempotencyKey;
 import nz.co.bitmonkey.westpac.account.Nickname;
+import nz.co.bitmonkey.westpac.account.RequestFingerprint;
 import nz.co.bitmonkey.westpac.account.SavingsAccount;
+import nz.co.bitmonkey.westpac.account.StoredAccount;
 import org.jspecify.annotations.Nullable;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -41,6 +44,9 @@ public final class AccountRepository {
     private static final RowMapper<AccountNumber> NUMBER = (rs, row) -> number(rs);
 
     private static final RowMapper<SavingsAccount> ACCOUNT = (rs, row) -> account(rs);
+
+    private static final RowMapper<StoredAccount> STORED =
+            (rs, row) -> new StoredAccount(account(rs), new RequestFingerprint(rs.getString("request_fingerprint")));
 
     private final JdbcClient jdbc;
 
@@ -69,6 +75,27 @@ public final class AccountRepository {
                 .param("customerId", customerId.value())
                 .query(NUMBER)
                 .list());
+    }
+
+    /**
+     * Reads the account a customer opened with an idempotency key, with the fingerprint of the request that opened it.
+     * A row with no key is never found.
+     *
+     * @param customerId the customer
+     * @param key the idempotency key
+     * @return the account and its fingerprint, or empty when the customer opened no account with that key
+     */
+    public Optional<StoredAccount> findByKey(CustomerId customerId, IdempotencyKey key) {
+        return jdbc.sql("""
+                        select id, bank, branch, account_base, suffix, customer_id, customer_name, nickname,
+                            created_at, request_fingerprint
+                        from savings_account
+                        where customer_id = :customerId and idempotency_key = :key
+                        """)
+                .param("customerId", customerId.value())
+                .param("key", key.value())
+                .query(STORED)
+                .optional();
     }
 
     /**

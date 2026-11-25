@@ -14,8 +14,12 @@ import nz.co.bitmonkey.westpac.account.AccountNumber;
 import nz.co.bitmonkey.westpac.account.BranchNumber;
 import nz.co.bitmonkey.westpac.account.CustomerId;
 import nz.co.bitmonkey.westpac.account.CustomerName;
+import nz.co.bitmonkey.westpac.account.Idempotency;
+import nz.co.bitmonkey.westpac.account.IdempotencyKey;
 import nz.co.bitmonkey.westpac.account.Nickname;
+import nz.co.bitmonkey.westpac.account.RequestFingerprint;
 import nz.co.bitmonkey.westpac.account.SavingsAccount;
+import nz.co.bitmonkey.westpac.account.StoredAccount;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -65,6 +69,45 @@ class AccountRepositoryTest extends ApplicationTest {
     }
 
     @Test
+    void findsAKeyedAccountWithItsFingerprint() {
+        CustomerId customer = new CustomerId(UUID.randomUUID());
+        SavingsAccount account = account(customer, number(7), new Nickname("Holiday fund"));
+        Idempotency idempotency = idempotency();
+
+        repository.insert(account, 1, idempotency);
+
+        assertThat(repository.findByKey(customer, idempotency.key()))
+                .contains(new StoredAccount(account, idempotency.fingerprint()));
+    }
+
+    @Test
+    void findsNoAccountForAnUnknownKey() {
+        CustomerId customer = new CustomerId(UUID.randomUUID());
+        repository.insert(account(customer, number(7), null), 1, idempotency());
+
+        assertThat(repository.findByKey(customer, new IdempotencyKey(UUID.randomUUID())))
+                .isEmpty();
+    }
+
+    @Test
+    void findsNoAccountForTheSameKeyOfAnotherCustomer() {
+        Idempotency idempotency = idempotency();
+        repository.insert(account(new CustomerId(UUID.randomUUID()), number(7), null), 1, idempotency);
+
+        assertThat(repository.findByKey(new CustomerId(UUID.randomUUID()), idempotency.key()))
+                .isEmpty();
+    }
+
+    @Test
+    void neverFindsAnAccountOpenedWithNoKey() {
+        CustomerId customer = new CustomerId(UUID.randomUUID());
+        repository.insert(account(customer, number(7), null), 1, null);
+
+        assertThat(repository.findByKey(customer, new IdempotencyKey(UUID.randomUUID())))
+                .isEmpty();
+    }
+
+    @Test
     void givesRisingSequenceValues() {
         int first = repository.nextAccountNumberSequence();
         int second = repository.nextAccountNumberSequence();
@@ -89,6 +132,13 @@ class AccountRepositoryTest extends ApplicationTest {
     private static SavingsAccount account(CustomerId customer, AccountNumber number, @Nullable Nickname nickname) {
         return new SavingsAccount(
                 newAccountId(), number, customer, new CustomerName("Repository Test"), nickname, Instant.now());
+    }
+
+    private static Idempotency idempotency() {
+        UUID key = UUID.randomUUID();
+        return new Idempotency(
+                new IdempotencyKey(key),
+                new RequestFingerprint(key.toString().replace("-", "").repeat(2)));
     }
 
     private static AccountId newAccountId() {
