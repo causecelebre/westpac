@@ -29,6 +29,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.ServletWebRequest;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
+import tools.jackson.core.exc.StreamConstraintsException;
 
 /** Turns the exceptions that requests can cause into problem bodies. */
 @RestControllerAdvice
@@ -59,10 +60,17 @@ final class ProblemAdvice extends ResponseEntityExceptionHandler {
         return ResponseEntity.of(problem).headers(headers).build();
     }
 
-    /** Answers a body that is not JSON, not an object, or holds a duplicate key, an unknown property or a bad value. */
+    /**
+     * Answers a body over the size limit with {@code 413 request-too-large}. Answers a body that is not JSON, not an
+     * object, or holds a duplicate key, an unknown property or a bad value with {@code 400 malformed-request}.
+     */
     @Override
     protected @Nullable ResponseEntity<Object> handleHttpMessageNotReadable(
             HttpMessageNotReadableException exception, HttpHeaders headers, HttpStatusCode status, WebRequest request) {
+        if (exception.getCause() instanceof StreamConstraintsException) {
+            return problem(Problem.REQUEST_TOO_LARGE, headers, request, "The body is larger than the service accepts");
+        }
+
         return problem(
                 Problem.MALFORMED_REQUEST,
                 headers,

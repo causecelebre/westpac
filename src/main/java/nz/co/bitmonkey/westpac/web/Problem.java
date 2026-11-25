@@ -13,6 +13,7 @@ public enum Problem {
     MALFORMED_REQUEST(HttpStatus.BAD_REQUEST, "malformed-request", "The request cannot be read"),
     VALIDATION_FAILED(HttpStatus.BAD_REQUEST, "validation-failed", "The request is not valid"),
     ACCOUNT_NOT_FOUND(HttpStatus.NOT_FOUND, "account-not-found", "The account does not exist"),
+    REQUEST_TOO_LARGE(HttpStatus.CONTENT_TOO_LARGE, "request-too-large", "The request is too large"),
     UNSUPPORTED_MEDIA_TYPE(
             HttpStatus.UNSUPPORTED_MEDIA_TYPE, "unsupported-media-type", "The media type is not supported"),
     BRANCH_NOT_ALLOWED(HttpStatus.UNPROCESSABLE_CONTENT, "branch-not-allowed", "The branch is not allowed"),

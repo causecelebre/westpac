@@ -10,6 +10,10 @@ spring:
     validate-on-migrate: true
     clean-disabled: true
   jackson:
+    factory:
+      constraints:
+        read:
+          max-document-length: 4096
     deserialization:
       fail-on-unknown-properties: true
     read:
