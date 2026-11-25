@@ -1,0 +1,39 @@
+# Words that a nickname may not hold. See DESIGN section 7.2.
+#
+# Format:
+# - One entry on each line. "#" starts a comment anywhere on a line. Blank lines are skipped.
+# - Each entry is stripped and lower-cased. Nothing else is done to it, and nothing checks it.
+# - Write each entry as the service compares it: letters only, with no accents, no digits and no
+#   spaces. An entry such as "bad word" or "b4dword" matches nothing.
+# - A nickname is refused when one of its words, or all its words joined, is an entry.
+# - The list must have at least one entry, or the application does not start.
+arsehole
+asshole
+bastard
+bellend
+bitch
+bollocks
+bullshit
+chink
+cock
+cocksucker
+dickhead
+douchebag
+fag
+faggot
+fuck
+fucker
+fucking
+kike
+motherfucker
+piss
+prick
+pussy
+retard
+shit
+shithead
+slut
+spastic
+twat
+wanker
+whore

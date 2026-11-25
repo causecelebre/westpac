@@ -14,6 +14,7 @@ import nz.co.bitmonkey.westpac.account.Nickname;
 import nz.co.bitmonkey.westpac.config.ModerationProperties;
 import org.apache.commons.io.IOUtils;
 import org.springframework.core.io.Resource;
+import org.springframework.stereotype.Component;
 
 /**
  * Refuses a nickname when one of its words, or all its words joined, is an entry in a list of offensive words. The list
@@ -23,6 +24,7 @@ import org.springframework.core.io.Resource;
  * stripped and lower-cased, and is otherwise used as written. The list holds each entry in the form that
  * {@link NicknameNormaliser} gives a word, with no marks, no substituted digits and no spaces.
  */
+@Component
 final class ListNicknamePolicy implements NicknamePolicy {
 
     private static final char COMMENT = '#';
