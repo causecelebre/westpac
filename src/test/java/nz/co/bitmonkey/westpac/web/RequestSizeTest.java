@@ -14,6 +14,7 @@ import java.net.http.HttpRequest.BodyPublisher;
 import java.net.http.HttpRequest.BodyPublishers;
 import java.net.http.HttpResponse;
 import java.net.http.HttpResponse.BodyHandlers;
+import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.UUID;
 import nz.co.bitmonkey.westpac.ApplicationTest;
@@ -67,6 +68,18 @@ class RequestSizeTest extends ApplicationTest {
     }
 
     @Test
+    void countsCharactersSoAUtf32BodyIsHeldTo16KiB() throws IOException, InterruptedException {
+        Charset utf32 = Charset.forName("UTF-32LE");
+        byte[] atLimit = paddedBodyOf(4_096).getBytes(utf32);
+        byte[] overLimit = paddedBodyOf(4_097).getBytes(utf32);
+
+        assertThat(post("application/json", BodyPublishers.ofByteArray(atLimit)).statusCode())
+                .isEqualTo(201);
+        assertTooLarge(post("application/json", BodyPublishers.ofByteArray(overLimit)));
+        assertThat(overLimit).hasSize(16_388);
+    }
+
+    @Test
     void leavesABodyOfAnotherTypeToTheMediaTypeCheck() throws IOException, InterruptedException {
         byte[] body = validBodyOf(5_000);
 
@@ -90,13 +103,17 @@ class RequestSizeTest extends ApplicationTest {
     }
 
     private static byte[] validBodyOf(int bytes) {
+        byte[] padded = paddedBodyOf(bytes).getBytes(StandardCharsets.UTF_8);
+        assertThat(padded).hasSize(bytes);
+        return padded;
+    }
+
+    private static String paddedBodyOf(int characters) {
         String body = json.writeValueAsString(json.createObjectNode()
                 .put("customerId", UUID.randomUUID().toString())
                 .put("branch", "0123")
                 .put("customerName", "Jane Citizen"));
-        byte[] padded = (body + " ".repeat(bytes - body.length())).getBytes(StandardCharsets.UTF_8);
-        assertThat(padded).hasSize(bytes);
-        return padded;
+        return body + " ".repeat(characters - body.length());
     }
 
     private HttpResponse<String> post(String contentType, BodyPublisher body) throws IOException, InterruptedException {
