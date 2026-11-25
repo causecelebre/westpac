@@ -18,12 +18,15 @@ import org.postgresql.util.ServerErrorMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.TypeMismatchException;
+import org.springframework.dao.DataAccessResourceFailureException;
 import org.springframework.dao.DuplicateKeyException;
+import org.springframework.dao.TransientDataAccessException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.transaction.CannotCreateTransactionException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.HttpMediaTypeNotAcceptableException;
 import org.springframework.web.HttpMediaTypeNotSupportedException;
@@ -43,6 +46,8 @@ final class ProblemAdvice extends ResponseEntityExceptionHandler {
 
     private static final Map<String, FieldErrorCode> CODES_BY_CONSTRAINT =
             Map.of("NotNull", FieldErrorCode.REQUIRED, "Pattern", FieldErrorCode.CHARACTERS);
+
+    private static final String RETRY_AFTER_SECONDS = "5";
 
     private static final Set<String> RACE_CONSTRAINTS =
             Set.of("savings_account_customer_uk", "savings_account_number_uk");
@@ -132,6 +137,27 @@ final class ProblemAdvice extends ResponseEntityExceptionHandler {
 
         return ResponseEntity.of(Problem.CONCURRENT_REQUEST.body(
                         request, "Another create for the customer was completed first. Send the request again"))
+                .build();
+    }
+
+    /**
+     * Answers a database that cannot be reached, or that did not answer in time, with {@code 503 service-unavailable}
+     * and {@code Retry-After: 5}. A transaction that cannot get a connection when it starts counts as one that cannot
+     * reach the database.
+     *
+     * @param exception the failure from the database
+     * @param request the request that met it
+     * @return the problem
+     */
+    @ExceptionHandler({
+        DataAccessResourceFailureException.class,
+        TransientDataAccessException.class,
+        CannotCreateTransactionException.class
+    })
+    ResponseEntity<ProblemDetail> handleDatabaseUnavailable(Exception exception, HttpServletRequest request) {
+        return ResponseEntity.of(Problem.SERVICE_UNAVAILABLE.body(
+                        request, "The database is not available now. Send the request again later"))
+                .header(HttpHeaders.RETRY_AFTER, RETRY_AFTER_SECONDS)
                 .build();
     }
 
