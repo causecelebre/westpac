@@ -18,6 +18,7 @@ import nz.co.bitmonkey.westpac.account.CustomerName;
 import nz.co.bitmonkey.westpac.account.Nickname;
 import nz.co.bitmonkey.westpac.account.OpenAccount;
 import nz.co.bitmonkey.westpac.account.OpenResult;
+import nz.co.bitmonkey.westpac.account.SavingsAccount;
 import nz.co.bitmonkey.westpac.web.Problem;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -35,6 +36,8 @@ import org.springframework.web.bind.annotation.RestController;
 public final class AccountController {
 
     static final String PATH = "/api/v1/savings-accounts";
+
+    private static final String IDEMPOTENT_REPLAYED = "Idempotent-Replayed";
 
     private final AccountWriterService writer;
     private final AccountReaderService reader;
@@ -55,16 +58,16 @@ public final class AccountController {
      *
      * @param request the account to open
      * @param http the HTTP request
-     * @return {@code 201} with the new account, or {@code 422} with the rule that refused it
+     * @return {@code 201} with the new account or a replayed one, or {@code 422} with the rule that refused it
      */
     @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> open(@Valid @RequestBody OpenAccountRequest request, HttpServletRequest http) {
         OpenAccount open = openAccount(request);
 
         return switch (writer.open(open)) {
-            case OpenResult.Opened(var account) ->
-                ResponseEntity.created(URI.create(PATH + "/" + account.id().value()))
-                        .body(AccountResponse.of(account));
+            case OpenResult.Opened(var account) -> created(account).body(AccountResponse.of(account));
+            case OpenResult.Replayed(var account) ->
+                created(account).header(IDEMPOTENT_REPLAYED, "true").body(AccountResponse.of(account));
             case OpenResult.BranchRefused() ->
                 problem(
                         Problem.BRANCH_NOT_ALLOWED,
@@ -74,6 +77,8 @@ public final class AccountController {
                 problem(Problem.NICKNAME_NOT_ALLOWED, http, "The nickname is not allowed");
             case OpenResult.LimitReached(var limit) ->
                 problem(Problem.ACCOUNT_LIMIT_REACHED, http, "The customer already has " + limit + " accounts");
+            case OpenResult.KeyReused() ->
+                problem(Problem.IDEMPOTENCY_KEY_REUSED, http, "The idempotency key was used with a different request");
         };
     }
 
@@ -105,6 +110,10 @@ public final class AccountController {
                 new CustomerName(Objects.requireNonNull(request.customerName(), "customerName")),
                 Optional.ofNullable(request.nickname()).map(Nickname::new).orElse(null),
                 null);
+    }
+
+    private static ResponseEntity.BodyBuilder created(SavingsAccount account) {
+        return ResponseEntity.created(URI.create(PATH + "/" + account.id().value()));
     }
 
     private static ResponseEntity<?> notFound(HttpServletRequest http) {
