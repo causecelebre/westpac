@@ -1,4 +1,4 @@
-.PHONY: env infra run run-direct down reset logs psql test check format
+.PHONY: env infra run run-direct up down reset logs psql test check format
 
 env:
 	test -f .env || cp .env.example .env
@@ -15,15 +15,18 @@ run: infra
 run-direct: .env
 	set -a; . ./.env; set +a; ./gradlew bootRun
 
+up: .env
+	docker compose --profile app up --detach --build --wait
+
 down:
-	docker compose down
+	docker compose --profile app down
 
 reset:
 	@printf 'Stop all containers and delete the PostgreSQL data volume? [y/N] '; read answer; \
-	if [ "$$answer" = y ]; then docker compose down --volumes; else echo 'Kept the data volume.'; fi
+	if [ "$$answer" = y ]; then docker compose --profile app down --volumes; else echo 'Kept the data volume.'; fi
 
 logs:
-	docker compose logs --follow
+	docker compose --profile app logs --follow
 
 psql:
 	docker compose exec postgres psql --username=westpac_app --dbname=westpac
