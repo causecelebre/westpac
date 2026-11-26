@@ -5,6 +5,7 @@ package nz.co.bitmonkey.westpac.web;
 
 import jakarta.servlet.http.HttpServletRequest;
 import java.net.URI;
+import java.util.Objects;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 
@@ -43,7 +44,8 @@ public enum Problem {
     }
 
     /**
-     * Builds the RFC 9457 body for this problem, with the request path as its instance.
+     * Builds the RFC 9457 body for this problem, with the request path as its instance and the id that
+     * {@code RequestIdFilter} gave the request.
      *
      * @param request the request that the problem answers
      * @param detail text for people about this occurrence
@@ -55,6 +57,10 @@ public enum Problem {
         problem.setTitle(title);
         problem.setInstance(URI.create(request.getRequestURI()));
         problem.setProperty("code", code);
+        problem.setProperty(
+                "requestId",
+                Objects.requireNonNull(
+                        request.getAttribute(RequestIdFilter.ATTRIBUTE), "the request did not pass RequestIdFilter"));
 
         return problem;
     }

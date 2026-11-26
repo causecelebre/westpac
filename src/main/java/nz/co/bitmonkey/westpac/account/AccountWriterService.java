@@ -8,6 +8,8 @@ import java.time.Instant;
 import java.util.Optional;
 import nz.co.bitmonkey.westpac.account.store.AccountRepository;
 import nz.co.bitmonkey.westpac.moderation.NicknamePolicy;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -15,6 +17,8 @@ import org.springframework.transaction.support.TransactionTemplate;
 /** Opens savings accounts. */
 @Service
 public final class AccountWriterService {
+
+    private static final Logger LOG = LoggerFactory.getLogger(AccountWriterService.class);
 
     private static final int TRANSACTION_TIMEOUT_SECONDS = 5;
 
@@ -82,7 +86,7 @@ public final class AccountWriterService {
             return new OpenResult.NicknameRefused();
         }
 
-        return transactions.execute(status -> {
+        OpenResult result = transactions.execute(status -> {
             Idempotency idempotency = request.idempotency();
             if (idempotency != null) {
                 Optional<StoredAccount> stored = repository.findByKey(request.customerId(), idempotency.key());
@@ -108,6 +112,12 @@ public final class AccountWriterService {
 
             return new OpenResult.Opened(account);
         });
+
+        if (result instanceof OpenResult.Opened opened) {
+            LOG.info("Account opened: accountId={}", opened.account().id().value());
+        }
+
+        return result;
     }
 
     private static OpenResult replayOrRefuse(StoredAccount stored, RequestFingerprint fingerprint) {
