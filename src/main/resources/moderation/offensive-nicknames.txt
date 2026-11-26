@@ -1,4 +1,4 @@
-# Words that a nickname may not hold. See DESIGN section 7.2.
+# Words that a nickname may not hold.
 #
 # Format:
 # - One entry on each line. "#" starts a comment anywhere on a line. Blank lines are skipped.
