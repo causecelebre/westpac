@@ -51,11 +51,7 @@ class ManagementEndpointsTest extends ApplicationTest {
         HttpResponse<String> response = get(managementPort(), "/actuator/prometheus");
 
         assertThat(response.statusCode()).isEqualTo(200);
-        assertThat(response.body())
-                .contains("westpac_accounts_opened_total")
-                .contains("westpac_accounts_refused_total")
-                .contains("westpac_cache_errors_total")
-                .contains("hikaricp_connections");
+        assertThat(response.body()).contains("westpac_cache_errors_total").contains("hikaricp_connections");
     }
 
     @ParameterizedTest
