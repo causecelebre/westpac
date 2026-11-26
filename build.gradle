@@ -26,6 +26,8 @@ repositories {
   mavenCentral()
 }
 
+// TODO(#3): scan dependencies for known vulnerabilities in CI.
+// TODO(#4): add distributed tracing through Micrometer Tracing and OpenTelemetry.
 dependencies {
   implementation platform(SpringBootPlugin.BOM_COORDINATES)
   implementation libs.spring.boot.starter.actuator

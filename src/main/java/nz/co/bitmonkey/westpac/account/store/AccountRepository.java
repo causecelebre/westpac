@@ -106,6 +106,7 @@ public final class AccountRepository {
      * @param idempotency the request's idempotency key and fingerprint, or {@code null} when the request had no key
      */
     public void insert(SavingsAccount account, int position, @Nullable Idempotency idempotency) {
+        // TODO(#13): encrypt the customer name at rest, once key management is decided.
         AccountNumber number = account.number();
         Optional<Idempotency> keyed = Optional.ofNullable(idempotency);
 

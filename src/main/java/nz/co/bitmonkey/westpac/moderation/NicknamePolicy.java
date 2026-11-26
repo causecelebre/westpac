@@ -8,6 +8,8 @@ import nz.co.bitmonkey.westpac.account.Nickname;
 /** Decides whether a nickname is allowed on an account. */
 public sealed interface NicknamePolicy permits ListNicknamePolicy {
 
+    // TODO(#11): add a moderation service as a second implementation.
+
     /**
      * Tells whether a nickname is allowed.
      *

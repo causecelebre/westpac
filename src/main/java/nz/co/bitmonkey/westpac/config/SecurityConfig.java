@@ -42,6 +42,8 @@ public final class SecurityConfig {
     @Bean
     @Order(2)
     SecurityFilterChain apiChain(HttpSecurity http) {
+        // TODO(#1): authenticate callers as an OAuth 2.0 resource server, and check that each may act for its
+        // customerId.
         return stateless(http)
                 .authorizeHttpRequests(requests -> requests.dispatcherTypeMatchers(DispatcherType.ERROR)
                         .permitAll()
