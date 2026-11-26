@@ -41,15 +41,18 @@ public record AccountNumber(String bank, BranchNumber branch, String base, int s
         if (!Bank03.CODE.equals(bank)) {
             throw new IllegalArgumentException(String.format("account number bank must be 03, got %s", bank));
         }
+
         if (!SEVEN_DIGITS.matcher(base).matches()) {
             throw new IllegalArgumentException(String.format(
                     "account number base must be seven ASCII digits, at bank %s branch %s", bank, branch.value()));
         }
+
         if (suffix < 0 || suffix > MAX_SUFFIX) {
             throw new IllegalArgumentException(String.format(
                     "account number suffix must be 0 to 999, got %s at bank %s branch %s",
                     suffix, bank, branch.value()));
         }
+
         if (weightedSum(bank, branch, base, suffix) % Bank03.MODULUS != 0) {
             throw new IllegalArgumentException(
                     String.format("account number check digit is wrong, at bank %s branch %s", bank, branch.value()));
@@ -57,24 +60,23 @@ public record AccountNumber(String bank, BranchNumber branch, String base, int s
     }
 
     /**
-     * Makes the number for a new account base, with suffix {@code 000}. The base is the six digits of
-     * {@code sequenceValue} followed by the one check digit that makes the number valid.
+     * Makes the number for a new account base at bank {@code 03}, with suffix {@code 000}. The base is the six digits
+     * of {@code sequenceValue} followed by the one check digit that makes the number valid.
      *
-     * @param bank the bank code
      * @param branch the branch of the new account
      * @param sequenceValue the next value of the account number sequence, from 1 to 999999
      * @return the new number, or empty when the check digit would have to be 10
      */
-    public static Optional<AccountNumber> withNewBase(String bank, BranchNumber branch, int sequenceValue) {
+    public static Optional<AccountNumber> withNewBase(BranchNumber branch, int sequenceValue) {
         String prefix = String.format(Locale.ROOT, "%06d", sequenceValue);
-        int remainder = weightedSum(bank, branch, prefix + "0", 0) % Bank03.MODULUS;
+        int remainder = weightedSum(Bank03.CODE, branch, prefix + "0", 0) % Bank03.MODULUS;
         int checkDigit = (Bank03.MODULUS - remainder) % Bank03.MODULUS;
 
         if (checkDigit == NO_DIGIT) {
             return Optional.empty();
         }
 
-        return Optional.of(new AccountNumber(bank, branch, prefix + checkDigit, 0));
+        return Optional.of(new AccountNumber(Bank03.CODE, branch, prefix + checkDigit, 0));
     }
 
     /**
@@ -82,9 +84,17 @@ public record AccountNumber(String bank, BranchNumber branch, String base, int s
      *
      * @return the four parts joined by hyphens, with the suffix padded to three digits
      */
+    public String standardForm() {
+        return String.format(Locale.ROOT, "%s-%s-%s-%03d", bank, branch.value(), base, suffix);
+    }
+
+    /**
+     * Gives the standard form with the base hidden, for example {@code 03-0123-*******-000}, so that a log line does
+     * not show the full number.
+     */
     @Override
     public String toString() {
-        return String.format(Locale.ROOT, "%s-%s-%s-%03d", bank, branch.value(), base, suffix);
+        return String.format(Locale.ROOT, "%s-%s-*******-%03d", bank, branch.value(), suffix);
     }
 
     private static int weightedSum(String bank, BranchNumber branch, String base, int suffix) {

@@ -117,8 +117,7 @@ class AccountRepositoryTest extends ApplicationTest {
 
     private AccountNumber number(int suffix) {
         while (true) {
-            Optional<AccountNumber> base =
-                    AccountNumber.withNewBase("03", BRANCH, repository.nextAccountNumberSequence());
+            Optional<AccountNumber> base = AccountNumber.withNewBase(BRANCH, repository.nextAccountNumberSequence());
             if (base.isPresent()) {
                 return withSuffix(base.get(), suffix);
             }

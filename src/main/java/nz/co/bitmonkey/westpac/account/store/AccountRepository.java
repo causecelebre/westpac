@@ -41,12 +41,12 @@ import org.springframework.stereotype.Component;
 @Component
 public final class AccountRepository {
 
-    private static final RowMapper<AccountNumber> NUMBER = (rs, row) -> number(rs);
+    private static final RowMapper<AccountNumber> NUMBER = (rs, _) -> number(rs);
 
-    private static final RowMapper<SavingsAccount> ACCOUNT = (rs, row) -> account(rs);
+    private static final RowMapper<SavingsAccount> ACCOUNT = (rs, _) -> account(rs);
 
     private static final RowMapper<StoredAccount> STORED =
-            (rs, row) -> new StoredAccount(account(rs), new RequestFingerprint(rs.getString("request_fingerprint")));
+            (rs, _) -> new StoredAccount(account(rs), new RequestFingerprint(rs.getString("request_fingerprint")));
 
     private final JdbcClient jdbc;
 
@@ -67,11 +67,11 @@ public final class AccountRepository {
      */
     public CustomerAccounts accountsOf(CustomerId customerId) {
         return new CustomerAccounts(jdbc.sql("""
-                        select bank, branch, account_base, suffix
-                        from savings_account
-                        where customer_id = :customerId
-                        order by customer_account_seq
-                        """)
+            select bank, branch, account_base, suffix
+            from savings_account
+            where customer_id = :customerId
+            order by customer_account_seq
+            """)
                 .param("customerId", customerId.value())
                 .query(NUMBER)
                 .list());
@@ -87,11 +87,11 @@ public final class AccountRepository {
      */
     public Optional<StoredAccount> findByKey(CustomerId customerId, IdempotencyKey key) {
         return jdbc.sql("""
-                        select id, bank, branch, account_base, suffix, customer_id, customer_name, nickname,
-                            created_at, request_fingerprint
-                        from savings_account
-                        where customer_id = :customerId and idempotency_key = :key
-                        """)
+            select id, bank, branch, account_base, suffix, customer_id, customer_name, nickname,
+                created_at, request_fingerprint
+            from savings_account
+            where customer_id = :customerId and idempotency_key = :key
+            """)
                 .param("customerId", customerId.value())
                 .param("key", key.value())
                 .query(STORED)
@@ -111,12 +111,12 @@ public final class AccountRepository {
         Optional<Idempotency> keyed = Optional.ofNullable(idempotency);
 
         jdbc.sql("""
-                        insert into savings_account (id, bank, branch, account_base, suffix, customer_id,
-                            customer_name, customer_account_seq, nickname, idempotency_key, request_fingerprint,
-                            created_at)
-                        values (:id, :bank, :branch, :base, :suffix, :customerId, :customerName, :position,
-                            :nickname, :idempotencyKey, :fingerprint, :createdAt)
-                        """)
+            insert into savings_account (id, bank, branch, account_base, suffix, customer_id,
+                customer_name, customer_account_seq, nickname, idempotency_key, request_fingerprint,
+                created_at)
+            values (:id, :bank, :branch, :base, :suffix, :customerId, :customerName, :position,
+                :nickname, :idempotencyKey, :fingerprint, :createdAt)
+            """)
                 .param("id", account.id().value())
                 .param("bank", number.bank())
                 .param("branch", number.branch().value())
@@ -144,11 +144,11 @@ public final class AccountRepository {
      */
     public Optional<SavingsAccount> findById(AccountId id) {
         return jdbc.sql("""
-                        select id, bank, branch, account_base, suffix, customer_id, customer_name, nickname,
-                            created_at
-                        from savings_account
-                        where id = :id
-                        """).param("id", id.value()).query(ACCOUNT).optional();
+            select id, bank, branch, account_base, suffix, customer_id, customer_name, nickname,
+                created_at
+            from savings_account
+            where id = :id
+            """).param("id", id.value()).query(ACCOUNT).optional();
     }
 
     /**

@@ -142,8 +142,9 @@ public final class AccountController {
         CustomerName name = new CustomerName(Objects.requireNonNull(request.customerName(), "customerName"));
         Nickname nickname =
                 Optional.ofNullable(request.nickname()).map(Nickname::new).orElse(null);
-        Idempotency idempotency =
-                key == null ? null : new Idempotency(key, RequestFingerprint.of(customerId, branch, name, nickname));
+        Idempotency idempotency = Optional.ofNullable(key)
+                .map(k -> new Idempotency(k, RequestFingerprint.of(customerId, branch, name, nickname)))
+                .orElse(null);
 
         return new OpenAccount(customerId, branch, name, nickname, idempotency);
     }

@@ -35,11 +35,13 @@ final class CodePointsValidator implements ConstraintValidator<CodePoints, Strin
         }
 
         boolean blank = value.isEmpty();
+
         context.disableDefaultConstraintViolation();
         context.unwrap(HibernateConstraintValidatorContext.class)
                 .withDynamicPayload(blank ? FieldErrorCode.BLANK : FieldErrorCode.LENGTH)
                 .buildConstraintViolationWithTemplate(blank ? blankMessage : lengthMessage())
                 .addConstraintViolation();
+
         return false;
     }
 

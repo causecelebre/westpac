@@ -78,9 +78,10 @@ public final class AccountWriterService {
      */
     public OpenResult open(OpenAccount request) {
         OpenResult result = decide(request);
-        if (result instanceof OpenResult.Opened newAccount) {
+
+        if (result instanceof OpenResult.Opened(SavingsAccount account)) {
             // TODO(#12): record who opened the account in an audit trail, once callers are authenticated.
-            LOG.info("Account opened: accountId={}", newAccount.account().id().value());
+            LOG.info("Account opened: accountId={}", account.id().value());
         }
 
         return result;
@@ -96,7 +97,7 @@ public final class AccountWriterService {
             return new OpenResult.NicknameRefused();
         }
 
-        OpenResult result = transactions.execute(status -> {
+        return transactions.execute(_ -> {
             Idempotency idempotency = request.idempotency();
             if (idempotency != null) {
                 Optional<StoredAccount> stored = repository.findByKey(request.customerId(), idempotency.key());
@@ -122,8 +123,6 @@ public final class AccountWriterService {
 
             return new OpenResult.Opened(account);
         });
-
-        return result;
     }
 
     private static OpenResult replayOrRefuse(StoredAccount stored, RequestFingerprint fingerprint) {

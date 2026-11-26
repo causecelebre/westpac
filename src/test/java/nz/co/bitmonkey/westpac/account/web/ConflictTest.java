@@ -140,7 +140,7 @@ class ConflictTest extends ApplicationTest {
 
     private static String unreachedBase(String branch) {
         return IntStream.iterate(900_001, seed -> seed + 1)
-                .mapToObj(seed -> AccountNumber.withNewBase("03", new BranchNumber(branch), seed))
+                .mapToObj(seed -> AccountNumber.withNewBase(new BranchNumber(branch), seed))
                 .flatMap(Optional::stream)
                 .findFirst()
                 .orElseThrow()

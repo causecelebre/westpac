@@ -180,6 +180,7 @@ final class ProblemAdvice extends ResponseEntityExceptionHandler {
     ResponseEntity<ProblemDetail> handleUncategorizedSql(
             UncategorizedSQLException exception, HttpServletRequest request) {
         SQLException cause = exception.getSQLException();
+
         if (cause != null && LOCK_NOT_AVAILABLE.equals(cause.getSQLState())) {
             return handleDatabaseUnavailable(exception, request);
         }

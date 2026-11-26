@@ -102,6 +102,16 @@ class AccountNumberTest {
             1501, 5000019, 999, 03-1501-5000019-999
             """)
     void givesTheStandardForm(String branch, String base, int suffix, String form) {
+        assertThat(new AccountNumber("03", new BranchNumber(branch), base, suffix).standardForm())
+                .isEqualTo(form);
+    }
+
+    @ParameterizedTest
+    @CsvSource(textBlock = """
+            0123, 0000019, 0, 03-0123-*******-000
+            1501, 5000019, 999, 03-1501-*******-999
+            """)
+    void hidesTheBaseInToString(String branch, String base, int suffix, String form) {
         assertThat(new AccountNumber("03", new BranchNumber(branch), base, suffix))
                 .hasToString(form);
     }
@@ -114,20 +124,20 @@ class AccountNumberTest {
             1501, 99000, 03-1501-0990008-000
             """)
     void makesANewBaseFromASequenceValue(String branch, int sequenceValue, String form) {
-        assertThat(AccountNumber.withNewBase("03", new BranchNumber(branch), sequenceValue))
-                .hasValueSatisfying(number -> assertThat(number).hasToString(form));
+        assertThat(AccountNumber.withNewBase(new BranchNumber(branch), sequenceValue))
+                .hasValueSatisfying(number -> assertThat(number.standardForm()).isEqualTo(form));
     }
 
     @Test
     void givesNoNumberWhenTheCheckDigitWouldBe10() {
-        assertThat(AccountNumber.withNewBase("03", new BranchNumber("1501"), 2)).isEmpty();
+        assertThat(AccountNumber.withNewBase(new BranchNumber("1501"), 2)).isEmpty();
     }
 
     @ParameterizedTest
     @ValueSource(ints = {0, 1, 2, 3, 4})
     void acceptsEverySuffixOfANewBase(int suffix) {
         AccountNumber first =
-                AccountNumber.withNewBase("03", new BranchNumber("0123"), 1).orElseThrow();
+                AccountNumber.withNewBase(new BranchNumber("0123"), 1).orElseThrow();
 
         assertThat(new AccountNumber(first.bank(), first.branch(), first.base(), suffix).suffix())
                 .isEqualTo(suffix);
@@ -143,7 +153,7 @@ class AccountNumberTest {
                 .toArray();
         int empty = 0;
         for (int value : values) {
-            Optional<AccountNumber> number = AccountNumber.withNewBase("03", branch, value);
+            Optional<AccountNumber> number = AccountNumber.withNewBase(branch, value);
             if (number.isPresent()) {
                 assertThat(number.get().base()).startsWith(String.format(Locale.ROOT, "%06d", value));
             } else {
