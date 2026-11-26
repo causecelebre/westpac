@@ -41,5 +41,45 @@ services:
       timeout: 3s
       retries: 30
 
+  app:
+    build: .
+    profiles: [app]
+    environment:
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_APP_PASSWORD: ${DB_APP_PASSWORD:?DB_APP_PASSWORD is not set in .env}
+      DB_OWNER_PASSWORD: ${DB_OWNER_PASSWORD:?DB_OWNER_PASSWORD is not set in .env}
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+        required: false
+    ports:
+      - "127.0.0.1:8080:8080"
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 512m
+    healthcheck:
+      # bash, because the image has no curl or wget. The status line, because the body lists components.
+      test:
+        - CMD
+        - bash
+        - -c
+        - >-
+          exec 3<>/dev/tcp/127.0.0.1/8081
+          && printf 'GET /actuator/health/readiness HTTP/1.0\r\n\r\n' >&3
+          && head -1 <&3 | grep -q ' 200 '
+      interval: 2s
+      timeout: 3s
+      retries: 30
+      start_period: 10s
+
 volumes:
   postgres-data:
