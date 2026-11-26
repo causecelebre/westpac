@@ -13,11 +13,14 @@ import java.net.http.HttpResponse;
 import java.net.http.HttpResponse.BodyHandlers;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
+import java.sql.SQLException;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import nz.co.bitmonkey.westpac.ApplicationTest;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Test;
@@ -41,22 +44,13 @@ class ServiceUnavailableTest extends ApplicationTest {
     }
 
     @Test
-    void answersALockWaitPastTheTransactionTimeoutWith503() throws Exception {
+    void answersALockWaitPastTheLockTimeoutWith503() throws Exception {
         UUID customer = UUID.randomUUID();
         HttpResponse<String> waited;
         Duration elapsed;
 
         try (Connection owner = ownerTransaction()) {
-            try (PreparedStatement insert = owner.prepareStatement("""
-                    insert into savings_account (id, bank, branch, account_base, suffix, customer_id, customer_name,
-                        customer_account_seq, created_at)
-                    values (?, '03', '1501', '9999999', 999, ?, 'Timeout Test', 1, ?)
-                    """)) {
-                insert.setObject(1, UUID.randomUUID());
-                insert.setObject(2, customer);
-                insert.setObject(3, OffsetDateTime.ofInstant(Instant.EPOCH, ZoneOffset.UTC));
-                insert.executeUpdate();
-            }
+            insertClashingRow(owner, customer);
 
             Instant start = Instant.now();
             waited = client.send(createRequest(customer), BodyHandlers.ofString());
@@ -65,7 +59,7 @@ class ServiceUnavailableTest extends ApplicationTest {
         }
 
         assertThat(waited.statusCode()).isEqualTo(503);
-        assertThat(elapsed).isBetween(Duration.ofSeconds(5), Duration.ofSeconds(6));
+        assertThat(elapsed).isBetween(Duration.ofSeconds(2), Duration.ofSeconds(3));
         assertThat(waited.headers().firstValue("Retry-After")).hasValue("5");
         assertThat(waited.headers().firstValue("Content-Type")).hasValue("application/problem+json");
         assertThat(waited.headers().allValues("Cache-Control"))
@@ -80,6 +74,43 @@ class ServiceUnavailableTest extends ApplicationTest {
 
         assertThat(client.send(createRequest(customer), BodyHandlers.ofString()).statusCode())
                 .isEqualTo(201);
+    }
+
+    @Test
+    void answersACreateWhoseConnectionIsLostWith503() throws Exception {
+        UUID customer = UUID.randomUUID();
+        HttpResponse<String> lost;
+
+        try (Connection owner = ownerTransaction()) {
+            insertClashingRow(owner, customer);
+
+            CompletableFuture<HttpResponse<String>> sent =
+                    client.sendAsync(createRequest(customer), BodyHandlers.ofString());
+            awaitAppSessionsWaitingOnALock(1);
+            asSuperuser().sql("""
+                            select pg_terminate_backend(pid) from pg_stat_activity
+                            where usename = 'westpac_app' and wait_event_type = 'Lock'
+                            """).query(Boolean.class).list();
+            lost = sent.get(10, TimeUnit.SECONDS);
+            owner.rollback();
+        }
+
+        assertThat(lost.statusCode()).isEqualTo(503);
+        assertThat(lost.headers().firstValue("Retry-After")).hasValue("5");
+        assertThat(json.readTree(lost.body()).get("code").asString()).isEqualTo("service-unavailable");
+    }
+
+    private static void insertClashingRow(Connection owner, UUID customer) throws SQLException {
+        try (PreparedStatement insert = owner.prepareStatement("""
+                insert into savings_account (id, bank, branch, account_base, suffix, customer_id, customer_name,
+                    customer_account_seq, created_at)
+                values (?, '03', '1501', '9999999', 999, ?, 'Timeout Test', 1, ?)
+                """)) {
+            insert.setObject(1, UUID.randomUUID());
+            insert.setObject(2, customer);
+            insert.setObject(3, OffsetDateTime.ofInstant(Instant.EPOCH, ZoneOffset.UTC));
+            insert.executeUpdate();
+        }
     }
 
     private HttpRequest createRequest(UUID customer) {

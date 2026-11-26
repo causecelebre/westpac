@@ -3,6 +3,17 @@ spring:
     url: jdbc:postgresql://${DB_HOST}:${DB_PORT}/westpac
     username: westpac_app
     password: ${DB_APP_PASSWORD}
+    hikari:
+      maximum-pool-size: 10
+      connection-timeout: 2000
+      validation-timeout: 1000
+      data-source-properties:
+        options: "-c statement_timeout=3s -c lock_timeout=2s"
+        connectTimeout: 2
+        socketTimeout: 5
+  threads:
+    virtual:
+      enabled: true
   flyway:
     user: westpac_owner
     password: ${DB_OWNER_PASSWORD}
