@@ -1,4 +1,4 @@
-.PHONY: env infra run run-direct up down reset logs psql test check format
+.PHONY: env infra run run-direct up down reset logs psql smoke test check format
 
 env:
 	test -f .env || cp .env.example .env
@@ -30,6 +30,9 @@ logs:
 
 psql:
 	docker compose exec postgres psql --username=westpac_app --dbname=westpac
+
+smoke:
+	docker/smoke.sh
 
 test:
 	./gradlew test
