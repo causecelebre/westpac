@@ -22,6 +22,8 @@ import tools.jackson.databind.json.JsonMapper;
 @EnableCaching
 public final class CacheConfig implements CachingConfigurer {
 
+    // TODO(#9): add a circuit breaker, so that reads skip Redis during an outage.
+
     private final LoggingCacheErrorHandler errorHandler;
 
     /**

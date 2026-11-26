@@ -146,6 +146,7 @@ public final class AccountWriterService {
     private void count(OpenResult result) {
         switch (result) {
             case OpenResult.Opened newAccount -> {
+                // TODO(#12): record who opened the account in an audit trail, once callers are authenticated.
                 LOG.info(
                         "Account opened: accountId={}",
                         newAccount.account().id().value());

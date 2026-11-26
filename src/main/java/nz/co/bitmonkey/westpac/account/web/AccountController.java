@@ -74,6 +74,7 @@ public final class AccountController {
             @Valid @RequestBody OpenAccountRequest request,
             @RequestHeader(name = IDEMPOTENCY_KEY, required = false) @Nullable String keyHeader,
             HttpServletRequest http) {
+        // TODO(#2): rate-limit creates per caller, at the gateway or here.
 
         Optional<UUID> key = Optional.ofNullable(keyHeader).flatMap(AccountController::keyOf);
         if (keyHeader != null && key.isEmpty()) {

@@ -37,6 +37,7 @@ smoke:
 test:
 	./gradlew test
 
+# TODO(#5): add a CI workflow that runs check, builds the image and runs the smoke test.
 check:
 	./gradlew check
 

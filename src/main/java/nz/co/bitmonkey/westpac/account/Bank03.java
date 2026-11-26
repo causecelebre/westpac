@@ -15,6 +15,8 @@ import java.util.List;
  */
 final class Bank03 {
 
+    // TODO(#7): load the Payments NZ Bank Branch Register, so that other banks can be configured.
+
     /** The bank code. */
     static final String CODE = "03";
 
