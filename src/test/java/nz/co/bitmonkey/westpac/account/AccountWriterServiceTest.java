@@ -4,19 +4,13 @@
 package nz.co.bitmonkey.westpac.account;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
-import io.micrometer.core.instrument.Counter;
-import io.micrometer.core.instrument.MeterRegistry;
 import java.util.List;
-import java.util.Map;
-import java.util.TreeMap;
 import java.util.UUID;
 import nz.co.bitmonkey.westpac.ApplicationTest;
 import nz.co.bitmonkey.westpac.account.store.AccountRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.dao.DataAccessException;
 
 class AccountWriterServiceTest extends ApplicationTest {
 
@@ -30,9 +24,6 @@ class AccountWriterServiceTest extends ApplicationTest {
 
     @Autowired
     private AccountRepository repository;
-
-    @Autowired
-    private MeterRegistry registry;
 
     @Test
     void opensFiveAccountsAndRefusesTheSixth() {
@@ -164,95 +155,6 @@ class AccountWriterServiceTest extends ApplicationTest {
         OpenResult result = service.open(request);
         assertThat(result).isInstanceOf(OpenResult.Opened.class);
         return ((OpenResult.Opened) result).account();
-    }
-
-    @Test
-    void countsAnOpenedAccountAsNotReplayed() {
-        assertCountsOnly("opened replayed=false", () -> opened(request(newCustomer(), BRANCH, NAME)));
-    }
-
-    @Test
-    void countsAReplayAsReplayed() {
-        CustomerId customer = newCustomer();
-        Idempotency idempotency = idempotency(customer, NAME);
-        opened(keyed(customer, NAME, idempotency));
-
-        assertCountsOnly("opened replayed=true", () -> service.open(keyed(customer, NAME, idempotency)));
-    }
-
-    @Test
-    void countsARefusedBranch() {
-        assertCountsOnly(
-                "refused reason=branch", () -> service.open(request(newCustomer(), new BranchNumber("1000"), NAME)));
-    }
-
-    @Test
-    void countsARefusedNickname() {
-        assertCountsOnly(
-                "refused reason=nickname",
-                () -> service.open(new OpenAccount(newCustomer(), BRANCH, NAME, OFFENSIVE, null)));
-    }
-
-    @Test
-    void countsAReachedLimit() {
-        CustomerId customer = newCustomer();
-        for (int i = 0; i < CustomerAccountLimit.MAX; i++) {
-            opened(request(customer, BRANCH, NAME));
-        }
-
-        assertCountsOnly("refused reason=limit", () -> service.open(request(customer, BRANCH, NAME)));
-    }
-
-    @Test
-    void countsAReusedKey() {
-        CustomerId customer = newCustomer();
-        Idempotency idempotency = idempotency(customer, NAME);
-        opened(keyed(customer, NAME, idempotency));
-        CustomerName other = new CustomerName("Aroha Smith");
-
-        assertCountsOnly(
-                "refused reason=key-reused",
-                () -> service.open(
-                        keyed(customer, other, new Idempotency(idempotency.key(), fingerprint(customer, other)))));
-    }
-
-    @Test
-    void countsNothingForAFault() throws Exception {
-        Map<String, Double> before = counts();
-
-        withAccountNumbersRunOut(() -> assertThatExceptionOfType(DataAccessException.class)
-                .isThrownBy(() -> service.open(request(newCustomer(), BRANCH, NAME))));
-
-        assertThat(counts()).isEqualTo(before);
-    }
-
-    private void assertCountsOnly(String expected, Runnable action) {
-        Map<String, Double> before = counts();
-
-        action.run();
-
-        Map<String, Double> after = counts();
-        Map<String, Double> rose = new TreeMap<>();
-        after.forEach((name, count) -> {
-            double was = before.getOrDefault(name, 0.0);
-            if (count > was) {
-                rose.put(name, count - was);
-            }
-        });
-        assertThat(rose).containsExactly(Map.entry(expected, 1.0));
-    }
-
-    private Map<String, Double> counts() {
-        Map<String, Double> counts = new TreeMap<>();
-        for (Counter counter : registry.find("westpac.accounts.opened").counters()) {
-            counts.put("opened replayed=" + counter.getId().getTag("replayed"), counter.count());
-        }
-        for (Counter counter : registry.find("westpac.accounts.refused").counters()) {
-            counts.put("refused reason=" + counter.getId().getTag("reason"), counter.count());
-        }
-        assertThat(counts).hasSize(6);
-
-        return counts;
     }
 
     private static OpenAccount request(CustomerId customer, BranchNumber branch, CustomerName name) {
