@@ -21,6 +21,7 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.testcontainers.DockerClientFactory;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 import org.testcontainers.utility.DockerImageName;
@@ -63,6 +64,21 @@ public abstract class ApplicationTest {
         System.arraycopy(arguments, 0, command, 1, arguments.length);
 
         return REDIS.execInContainer(command).getStdout().strip();
+    }
+
+    protected static <T> T withRedisPaused(Callable<T> action) throws Exception {
+        DockerClientFactory.instance()
+                .client()
+                .pauseContainerCmd(REDIS.getContainerId())
+                .exec();
+        try {
+            return action.call();
+        } finally {
+            DockerClientFactory.instance()
+                    .client()
+                    .unpauseContainerCmd(REDIS.getContainerId())
+                    .exec();
+        }
     }
 
     protected static Connection ownerTransaction() throws SQLException {
