@@ -3,9 +3,11 @@
 # Exits 1 at the first check that fails, and names it.
 set -euo pipefail
 
-port=$(sed -n 's/^APP_PORT=//p' .env)
-[ -n "$port" ] || { echo 'FAIL: APP_PORT is not set in .env' >&2; exit 1; }
-base=http://127.0.0.1:$port
+# The same reading of .env as the Makefile's run targets.
+set -a
+. ./.env
+set +a
+base=http://127.0.0.1:${APP_PORT:?APP_PORT is not set in .env}
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
 
