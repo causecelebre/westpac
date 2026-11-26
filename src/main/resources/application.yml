@@ -38,3 +38,5 @@ westpac:
     bank: "03"
   moderation:
     list-location: classpath:moderation/offensive-nicknames.txt
+  cache:
+    time-to-live: 10m
