@@ -17,6 +17,7 @@ import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.env.Environment;
+import tools.jackson.databind.json.JsonMapper;
 
 class ManagementEndpointsTest extends ApplicationTest {
 
@@ -35,7 +36,8 @@ class ManagementEndpointsTest extends ApplicationTest {
         HttpResponse<String> response = get(managementPort(), "/actuator/health/readiness");
 
         assertThat(response.statusCode()).isEqualTo(200);
-        assertThat(response.body()).isEqualTo("{\"status\":\"UP\"}");
+        assertThat(JsonMapper.shared().readTree(response.body()).get("status").asString())
+                .isEqualTo("UP");
     }
 
     @ParameterizedTest
