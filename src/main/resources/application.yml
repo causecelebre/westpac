@@ -39,6 +39,10 @@ spring:
   lifecycle:
     timeout-per-shutdown-phase: 20s
 
+logging:
+  pattern:
+    correlation: "[%X{requestId:-}] "
+
 server:
   shutdown: graceful
   tomcat:

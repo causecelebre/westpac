@@ -95,7 +95,7 @@ class RequestSizeTest extends ApplicationTest {
                 .anySatisfy(value -> assertThat(value).contains("no-store"));
         JsonNode problem = json.readTree(response.body());
         assertThat(problem.propertyNames())
-                .containsExactlyInAnyOrder("type", "title", "status", "detail", "instance", "code");
+                .containsExactlyInAnyOrder("type", "title", "status", "detail", "instance", "code", "requestId");
         assertThat(problem.get("type").asString()).isEqualTo("tag:bitmonkey.co.nz,2026:problem/request-too-large");
         assertThat(problem.get("code").asString()).isEqualTo("request-too-large");
         assertThat(problem.get("status").asInt()).isEqualTo(413);
