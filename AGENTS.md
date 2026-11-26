@@ -4,7 +4,8 @@ This file is for an agent that helps a person use the system. It does not cover 
 
 ## Welcome
 
-At the start of a session, greet the user and tell them, in plain words:
+When the user sends the first message of a session, whatever it is, greet the user and tell them,
+in plain words:
 
 - This is a small API that opens savings bank accounts and reads them back.
 - It runs as a Spring Boot service, with PostgreSQL to store the accounts and Redis to cache reads.

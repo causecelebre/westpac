@@ -4,9 +4,10 @@ A Spring Boot service that opens savings bank accounts and reads them back. It s
 PostgreSQL, in one table, and caches reads in Redis.
 
 > [!TIP]
-> **The quick way: use a coding agent.** Clone the repository and open it in Claude Code, Codex or
-> another agent that reads `AGENTS.md`. The agent explains the system, offers to deploy it, runs
-> the smoke test, and sends requests for you. Ask it, for example:
+> **The quick way: use a coding agent.** Clone the repository, go into its folder, and start Claude
+> Code, Codex or another agent that reads `AGENTS.md`. An agent speaks only after a message, so start it
+> with one, for example `claude "hello"` or `codex "hello"`. The agent explains the system, offers
+> to deploy it, runs the smoke test, and sends requests for you. Ask it, for example:
 >
 > - "Deploy the system and run the smoke test."
 > - "Open an account for Jane Citizen with the nickname Rainy Day Fund."
