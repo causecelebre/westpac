@@ -1,7 +1,7 @@
 # Private to the author: not published
 /docs/
-/CLAUDE.md
-/AGENTS.md
+/CLAUDE.local.md
+/AGENTS.local.md
 
 # Claude Code: commands, local settings and worktrees
 /.claude/
