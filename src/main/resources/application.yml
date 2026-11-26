@@ -36,6 +36,13 @@ spring:
       fail-on-unknown-properties: true
     read:
       strict-duplicate-detection: true
+  lifecycle:
+    timeout-per-shutdown-phase: 20s
+
+server:
+  shutdown: graceful
+  tomcat:
+    connection-timeout: 10s
 
 management:
   server:
