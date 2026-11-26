@@ -67,16 +67,24 @@ public abstract class ApplicationTest {
     }
 
     protected static <T> T withRedisPaused(Callable<T> action) throws Exception {
+        return withPaused(REDIS, action);
+    }
+
+    protected static <T> T withPostgresPaused(Callable<T> action) throws Exception {
+        return withPaused(POSTGRES, action);
+    }
+
+    private static <T> T withPaused(GenericContainer<?> container, Callable<T> action) throws Exception {
         DockerClientFactory.instance()
                 .client()
-                .pauseContainerCmd(REDIS.getContainerId())
+                .pauseContainerCmd(container.getContainerId())
                 .exec();
         try {
             return action.call();
         } finally {
             DockerClientFactory.instance()
                     .client()
-                    .unpauseContainerCmd(REDIS.getContainerId())
+                    .unpauseContainerCmd(container.getContainerId())
                     .exec();
         }
     }
