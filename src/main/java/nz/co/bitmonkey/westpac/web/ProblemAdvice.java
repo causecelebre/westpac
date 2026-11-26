@@ -5,6 +5,7 @@ package nz.co.bitmonkey.westpac.web;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolation;
+import java.sql.SQLException;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -26,7 +27,9 @@ import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.jdbc.UncategorizedSQLException;
 import org.springframework.transaction.CannotCreateTransactionException;
+import org.springframework.transaction.TransactionSystemException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.HttpMediaTypeNotAcceptableException;
 import org.springframework.web.HttpMediaTypeNotSupportedException;
@@ -48,6 +51,8 @@ final class ProblemAdvice extends ResponseEntityExceptionHandler {
             Map.of("NotNull", FieldErrorCode.REQUIRED, "Pattern", FieldErrorCode.CHARACTERS);
 
     private static final String RETRY_AFTER_SECONDS = "5";
+
+    private static final String LOCK_NOT_AVAILABLE = "55P03";
 
     private static final Set<String> RACE_CONSTRAINTS =
             Set.of("savings_account_customer_uk", "savings_account_number_uk", "savings_account_idempotent_uk");
@@ -143,7 +148,7 @@ final class ProblemAdvice extends ResponseEntityExceptionHandler {
     /**
      * Answers a database that cannot be reached, or that did not answer in time, with {@code 503 service-unavailable}
      * and {@code Retry-After: 5}. A transaction that cannot get a connection when it starts counts as one that cannot
-     * reach the database.
+     * reach the database. So does a transaction whose rollback or commit fails, because its connection was lost.
      *
      * @param exception the failure from the database
      * @param request the request that met it
@@ -152,13 +157,34 @@ final class ProblemAdvice extends ResponseEntityExceptionHandler {
     @ExceptionHandler({
         DataAccessResourceFailureException.class,
         TransientDataAccessException.class,
-        CannotCreateTransactionException.class
+        CannotCreateTransactionException.class,
+        TransactionSystemException.class
     })
     ResponseEntity<ProblemDetail> handleDatabaseUnavailable(Exception exception, HttpServletRequest request) {
         return ResponseEntity.of(Problem.SERVICE_UNAVAILABLE.body(
                         request, "The database is not available now. Send the request again later"))
                 .header(HttpHeaders.RETRY_AFTER, RETRY_AFTER_SECONDS)
                 .build();
+    }
+
+    /**
+     * Answers a lock wait that ran past the lock timeout, PostgreSQL's SQL state {@code 55P03}, as a database that did
+     * not answer in time. Any other SQL error that Spring cannot classify is a fault, and gets {@code 500
+     * internal-error}.
+     *
+     * @param exception the SQL error that Spring did not classify
+     * @param request the request that met it
+     * @return the problem
+     */
+    @ExceptionHandler(UncategorizedSQLException.class)
+    ResponseEntity<ProblemDetail> handleUncategorizedSql(
+            UncategorizedSQLException exception, HttpServletRequest request) {
+        SQLException cause = exception.getSQLException();
+        if (cause != null && LOCK_NOT_AVAILABLE.equals(cause.getSQLState())) {
+            return handleDatabaseUnavailable(exception, request);
+        }
+
+        return handleUnplanned(exception, request);
     }
 
     /**
