@@ -46,6 +46,18 @@ class ManagementEndpointsTest extends ApplicationTest {
         assertThat(get(managementPort(), path).statusCode()).isEqualTo(200);
     }
 
+    @Test
+    void prometheusGivesTheServiceCountersAndThePoolMetrics() throws IOException, InterruptedException {
+        HttpResponse<String> response = get(managementPort(), "/actuator/prometheus");
+
+        assertThat(response.statusCode()).isEqualTo(200);
+        assertThat(response.body())
+                .contains("westpac_accounts_opened_total")
+                .contains("westpac_accounts_refused_total")
+                .contains("westpac_cache_errors_total")
+                .contains("hikaricp_connections");
+    }
+
     @ParameterizedTest
     @CsvSource({"management, /actuator", "management, /actuator/env", "api, /x"})
     void everythingElseIsRefusedWith401(String port, String path) throws IOException, InterruptedException {
