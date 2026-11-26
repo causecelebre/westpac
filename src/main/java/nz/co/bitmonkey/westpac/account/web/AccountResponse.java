@@ -32,7 +32,7 @@ record AccountResponse(
     static AccountResponse of(SavingsAccount account) {
         return new AccountResponse(
                 account.id().value(),
-                account.number().toString(),
+                account.number().standardForm(),
                 account.customerId().value(),
                 account.name().value(),
                 Optional.ofNullable(account.nickname()).map(Nickname::value).orElse(null),

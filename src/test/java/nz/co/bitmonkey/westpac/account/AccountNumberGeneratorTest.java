@@ -61,11 +61,11 @@ class AccountNumberGeneratorTest extends ApplicationTest {
     void skipsASequenceValueWhoseCheckDigitWouldBeTen() {
         JdbcClient owner = asOwner();
         int skipped = repository.nextAccountNumberSequence() + 1;
-        while (AccountNumber.withNewBase(Bank03.CODE, OTHER_BRANCH, skipped).isPresent()) {
+        while (AccountNumber.withNewBase(OTHER_BRANCH, skipped).isPresent()) {
             skipped++;
         }
         int used = skipped + 1;
-        while (AccountNumber.withNewBase(Bank03.CODE, OTHER_BRANCH, used).isEmpty()) {
+        while (AccountNumber.withNewBase(OTHER_BRANCH, used).isEmpty()) {
             used++;
         }
         owner.sql("select setval('account_number_seq', :value)")
@@ -76,8 +76,7 @@ class AccountNumberGeneratorTest extends ApplicationTest {
         AccountNumber number = generator.numberFor(new CustomerAccounts(List.of()), OTHER_BRANCH);
 
         assertThat(number)
-                .isEqualTo(AccountNumber.withNewBase(Bank03.CODE, OTHER_BRANCH, used)
-                        .orElseThrow());
+                .isEqualTo(AccountNumber.withNewBase(OTHER_BRANCH, used).orElseThrow());
         assertThat(owner.sql("select last_value from account_number_seq")
                         .query(Integer.class)
                         .single())

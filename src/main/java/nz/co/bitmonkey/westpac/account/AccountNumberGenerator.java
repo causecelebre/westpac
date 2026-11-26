@@ -57,7 +57,7 @@ final class AccountNumberGenerator {
 
         Optional<AccountNumber> number = Optional.empty();
         while (number.isEmpty()) {
-            number = AccountNumber.withNewBase(Bank03.CODE, branch, repository.nextAccountNumberSequence());
+            number = AccountNumber.withNewBase(branch, repository.nextAccountNumberSequence());
         }
 
         return number.get();
