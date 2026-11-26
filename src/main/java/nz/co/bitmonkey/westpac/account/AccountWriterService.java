@@ -3,8 +3,13 @@
 
 package nz.co.bitmonkey.westpac.account;
 
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
 import java.time.Clock;
 import java.time.Instant;
+import java.util.EnumMap;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import nz.co.bitmonkey.westpac.account.store.AccountRepository;
 import nz.co.bitmonkey.westpac.moderation.NicknamePolicy;
@@ -28,6 +33,9 @@ public final class AccountWriterService {
     private final NicknamePolicy nicknames;
     private final Clock clock;
     private final TransactionTemplate transactions;
+    private final Counter opened;
+    private final Counter replayed;
+    private final Map<RefusalReason, Counter> refused = new EnumMap<>(RefusalReason.class);
 
     /**
      * Makes the service.
@@ -38,6 +46,7 @@ public final class AccountWriterService {
      * @param nicknames the policy that decides whether a nickname is allowed
      * @param clock the clock that gives the time an account is opened
      * @param transactionManager the manager of the transaction that holds the count, the number and the insert
+     * @param registry the registry of the counts of opened and refused accounts
      */
     AccountWriterService(
             AccountRepository repository,
@@ -45,7 +54,8 @@ public final class AccountWriterService {
             AccountNumberGenerator numbers,
             NicknamePolicy nicknames,
             Clock clock,
-            PlatformTransactionManager transactionManager) {
+            PlatformTransactionManager transactionManager,
+            MeterRegistry registry) {
         this.repository = repository;
         this.ids = ids;
         this.numbers = numbers;
@@ -53,6 +63,16 @@ public final class AccountWriterService {
         this.clock = clock;
         this.transactions = new TransactionTemplate(transactionManager);
         this.transactions.setTimeout(TRANSACTION_TIMEOUT_SECONDS);
+        this.opened = openedCounter(registry, false);
+        this.replayed = openedCounter(registry, true);
+        for (RefusalReason reason : RefusalReason.values()) {
+            refused.put(
+                    reason,
+                    Counter.builder("westpac.accounts.refused")
+                            .description("Creates that a business rule refused")
+                            .tag("reason", reason.code())
+                            .register(registry));
+        }
     }
 
     /**
@@ -77,6 +97,13 @@ public final class AccountWriterService {
      *     was opened
      */
     public OpenResult open(OpenAccount request) {
+        OpenResult result = decide(request);
+        count(result);
+
+        return result;
+    }
+
+    private OpenResult decide(OpenAccount request) {
         if (!Bank03.allows(request.branch())) {
             return new OpenResult.BranchRefused();
         }
@@ -113,11 +140,35 @@ public final class AccountWriterService {
             return new OpenResult.Opened(account);
         });
 
-        if (result instanceof OpenResult.Opened opened) {
-            LOG.info("Account opened: accountId={}", opened.account().id().value());
-        }
-
         return result;
+    }
+
+    private void count(OpenResult result) {
+        switch (result) {
+            case OpenResult.Opened newAccount -> {
+                LOG.info(
+                        "Account opened: accountId={}",
+                        newAccount.account().id().value());
+                opened.increment();
+            }
+            case OpenResult.Replayed ignored -> replayed.increment();
+            case OpenResult.BranchRefused ignored -> refusedFor(RefusalReason.BRANCH);
+            case OpenResult.NicknameRefused ignored -> refusedFor(RefusalReason.NICKNAME);
+            case OpenResult.LimitReached ignored -> refusedFor(RefusalReason.LIMIT);
+            case OpenResult.KeyReused ignored -> refusedFor(RefusalReason.KEY_REUSED);
+        }
+    }
+
+    private void refusedFor(RefusalReason reason) {
+        Objects.requireNonNull(refused.get(reason), "the constructor registers a counter for each reason")
+                .increment();
+    }
+
+    private static Counter openedCounter(MeterRegistry registry, boolean replay) {
+        return Counter.builder("westpac.accounts.opened")
+                .description("Creates that opened an account, or replayed one")
+                .tag("replayed", String.valueOf(replay))
+                .register(registry);
     }
 
     private static OpenResult replayOrRefuse(StoredAccount stored, RequestFingerprint fingerprint) {

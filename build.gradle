@@ -39,6 +39,7 @@ dependencies {
   implementation libs.commons.io
   implementation libs.flyway.database.postgresql
   implementation libs.java.uuid.generator
+  implementation libs.micrometer.registry.prometheus
   implementation libs.postgresql
   testImplementation libs.spring.boot.starter.cache.test
   testImplementation libs.spring.boot.starter.data.redis.test

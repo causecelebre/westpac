@@ -15,6 +15,7 @@ spring-boot = "4.2.0"
 [libraries]
 commons-io = { module = "commons-io:commons-io", version.ref = "commons-io" }
 errorprone-core = { module = "com.google.errorprone:error_prone_core", version.ref = "errorprone" }
+micrometer-registry-prometheus = { module = "io.micrometer:micrometer-registry-prometheus" }
 jspecify = { module = "org.jspecify:jspecify", version.ref = "jspecify" }
 java-uuid-generator = { module = "com.fasterxml.uuid:java-uuid-generator", version.ref = "java-uuid-generator" }
 nullaway = { module = "com.uber.nullaway:nullaway", version.ref = "nullaway" }

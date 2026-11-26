@@ -22,15 +22,16 @@ public final class SecurityConfig {
 
     private SecurityConfig() {}
 
-    /** Permits the {@code health} and {@code info} endpoints and refuses every other endpoint. */
+    /** Permits the {@code health}, {@code info} and {@code prometheus} endpoints and refuses every other endpoint. */
     @Bean
     @Order(1)
     SecurityFilterChain managementChain(HttpSecurity http) {
         return stateless(http.securityMatcher(EndpointRequest.toAnyEndpoint()))
-                .authorizeHttpRequests(requests -> requests.requestMatchers(EndpointRequest.to("health", "info"))
-                        .permitAll()
-                        .anyRequest()
-                        .denyAll())
+                .authorizeHttpRequests(
+                        requests -> requests.requestMatchers(EndpointRequest.to("health", "info", "prometheus"))
+                                .permitAll()
+                                .anyRequest()
+                                .denyAll())
                 .build();
     }
 
