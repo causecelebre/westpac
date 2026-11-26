@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
-# Creates an account, reads it back, and checks one refusal, against the service on 127.0.0.1:8080.
+# Creates an account, reads it back, and checks one refusal, against the service on 127.0.0.1 at the APP_PORT of .env.
 # Exits 1 at the first check that fails, and names it.
 set -euo pipefail
 
-base=http://127.0.0.1:8080
+port=$(sed -n 's/^APP_PORT=//p' .env)
+[ -n "$port" ] || { echo 'FAIL: APP_PORT is not set in .env' >&2; exit 1; }
+base=http://127.0.0.1:$port
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
 

@@ -44,13 +44,14 @@ logging:
     correlation: "[%X{requestId:-}] "
 
 server:
+  port: ${APP_PORT}
   shutdown: graceful
   tomcat:
     connection-timeout: 10s
 
 management:
   server:
-    port: 8081
+    port: ${MANAGEMENT_PORT}
   endpoint:
     health:
       show-components: always
