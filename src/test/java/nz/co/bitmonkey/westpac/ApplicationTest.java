@@ -30,7 +30,7 @@ import org.testcontainers.utility.MountableFile;
 
 @SpringBootTest(
         webEnvironment = WebEnvironment.RANDOM_PORT,
-        properties = {"server.port=0", "management.server.port=0"})
+        properties = {"APP_PORT=0", "MANAGEMENT_PORT=0"})
 public abstract class ApplicationTest {
 
     private static final String INIT_SCRIPT = "docker/postgres/init/01-roles-and-schema.sql";

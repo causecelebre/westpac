@@ -51,6 +51,8 @@ services:
       DB_OWNER_PASSWORD: ${DB_OWNER_PASSWORD:?DB_OWNER_PASSWORD is not set in .env}
       REDIS_HOST: redis
       REDIS_PORT: "6379"
+      APP_PORT: "8080"
+      MANAGEMENT_PORT: "8081"
     depends_on:
       postgres:
         condition: service_healthy
@@ -58,7 +60,7 @@ services:
         condition: service_started
         required: false
     ports:
-      - "127.0.0.1:8080:8080"
+      - "127.0.0.1:${APP_PORT:?APP_PORT is not set in .env}:8080"
     read_only: true
     tmpfs:
       - /tmp

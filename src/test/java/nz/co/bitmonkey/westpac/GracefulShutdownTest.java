@@ -29,8 +29,8 @@ class GracefulShutdownTest {
     @Test
     void finishesARequestInProgressAndRefusesNewConnectionsDuringTheGracePeriod() throws Exception {
         Map<String, Object> properties = new HashMap<>(ApplicationTest.storeProperties());
-        properties.put("server.port", 0);
-        properties.put("management.server.port", 0);
+        properties.put("APP_PORT", 0);
+        properties.put("MANAGEMENT_PORT", 0);
         ConfigurableApplicationContext context = new SpringApplicationBuilder(WestpacApplication.class)
                 .properties(properties)
                 .registerShutdownHook(false)
