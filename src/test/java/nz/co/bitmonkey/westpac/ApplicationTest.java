@@ -12,6 +12,7 @@ import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -41,12 +42,17 @@ public abstract class ApplicationTest {
 
     @DynamicPropertySource
     static void storeProperties(DynamicPropertyRegistry registry) {
-        registry.add("DB_HOST", POSTGRES::getHost);
-        registry.add("DB_PORT", () -> POSTGRES.getMappedPort(PostgreSQLContainer.POSTGRESQL_PORT));
-        registry.add("DB_APP_PASSWORD", () -> APP_PASSWORD);
-        registry.add("DB_OWNER_PASSWORD", () -> OWNER_PASSWORD);
-        registry.add("REDIS_HOST", REDIS::getHost);
-        registry.add("REDIS_PORT", () -> REDIS.getMappedPort(REDIS_PORT));
+        storeProperties().forEach((name, value) -> registry.add(name, () -> value));
+    }
+
+    protected static Map<String, Object> storeProperties() {
+        return Map.of(
+                "DB_HOST", POSTGRES.getHost(),
+                "DB_PORT", POSTGRES.getMappedPort(PostgreSQLContainer.POSTGRESQL_PORT),
+                "DB_APP_PASSWORD", APP_PASSWORD,
+                "DB_OWNER_PASSWORD", OWNER_PASSWORD,
+                "REDIS_HOST", REDIS.getHost(),
+                "REDIS_PORT", REDIS.getMappedPort(REDIS_PORT));
     }
 
     protected static JdbcClient asOwner() {
